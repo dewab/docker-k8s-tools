@@ -1,0 +1,170 @@
+# ~/.zshrc for Kubernetes CLI Toolkit
+
+# Enable completion system
+autoload -Uz compinit promptinit
+compinit
+promptinit
+
+# Set up colors
+autoload -U colors && colors
+
+# Prompt with kube context + git branch if any
+# Load vcs_info for Git status
+autoload -Uz vcs_info
+precmd() { vcs_info }
+
+# Git info styling
+zstyle ':vcs_info:git:*' enable git
+zstyle ':vcs_info:git:*' formats '%b'
+zstyle ':vcs_info:*' check-for-changes true
+
+# Git summary function
+function git_prompt_info() {
+  git rev-parse --is-inside-work-tree &>/dev/null || return
+
+  local ahead behind dirty untracked branch
+  local info=""
+
+  branch=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null)
+
+  # ahead/behind
+  local raw=$(git rev-list --left-right --count @{upstream}...HEAD 2>/dev/null)
+  ahead=$(echo $raw | awk '{print $2}')
+  behind=$(echo $raw | awk '{print $1}')
+
+  [[ "$ahead" -gt 0 ]] && info+="%F{green}⬆$ahead%f "
+  [[ "$behind" -gt 0 ]] && info+="%F{red}⬇$behind%f "
+
+  # status symbols
+  git diff --quiet --ignore-submodules HEAD &>/dev/null || dirty="✱"
+  git diff --cached --quiet --ignore-submodules HEAD &>/dev/null || dirty+="✚"
+  [[ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]] && dirty+="✖"
+
+  echo "$branch $info$dirty"
+}
+
+# Kubernetes context and namespace
+# Kubernetes context and namespace
+function kube_prompt_info() {
+  local ctx ns
+  ctx=$(kubectl config current-context 2>/dev/null)
+  ns=$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)
+  [[ -n "$ctx" ]] && echo "%F{blue}[%F{cyan}cluster:%f%F{yellow}${ctx}%f%F{blue} / %F{cyan}namespace:%f%F{yellow}${ns:-default}%f%F{blue}]%f"
+}
+
+autoload -Uz vcs_info
+precmd() { vcs_info }
+
+setopt PROMPT_SUBST
+
+# Final prompt using kube_prompt_info and VCS info
+PROMPT='$(kube_prompt_info) ${vcs_info_msg_0_}
+%F{magenta}☸️%f %% '
+
+# Git info formatting
+zstyle ':vcs_info:git:*' formats '%F{red} %b%f'
+
+# Completion sources
+# NOTE: These will be silently skipped if the tool is missing or doesn't support zsh completion
+function try_source_completion() {
+  if command -v "$1" >/dev/null 2>&1; then
+    case "$1" in
+      kubectl)
+        source <($1 completion zsh)
+        ;;
+      helm)
+        source <($1 completion zsh)
+        ;;
+      k9s)
+        [[ -f /usr/share/zsh/site-functions/_k9s ]] && source /usr/share/zsh/site-functions/_k9s
+        ;;
+      tanzu)
+        source <($1 completion zsh)
+        ;;
+      velero)
+        source <($1 completion zsh)
+        ;;
+      yq)
+        # yq has no native completion as of v4.x, skipping
+        ;;
+      ytt|kapp|kbld|imgpkg|vendir|kctrl)
+        $1 completion zsh >/tmp/_${1}_completion.zsh 2>/dev/null && source /tmp/_${1}_completion.zsh
+        ;;
+    esac
+  fi
+}
+
+for tool in kubectl helm k9s tanzu velero ytt kapp kbld imgpkg vendir kctrl; do
+  try_source_completion "$tool"
+done
+
+# Set PATH and environment variables (if needed)
+export PATH="/k8s/bin:$PATH"
+
+# Aliases
+alias k=kubectl
+alias h=helm
+
+# Function: versions
+# Function: versions
+# Function: versions
+# Function: versions
+# Function: versions
+versions() {
+  clear
+
+  # Banner
+  cat /banner.txt
+
+  echo -e "\033[1;34mWelcome to the Kubernetes CLI Toolkit!\033[0m"
+  echo -e "\033[1;34mTools like kubectl, helm, ytt, kapp, k9s and more are ready to go.\033[0m"
+  echo
+
+  # Version variables
+  v_kubectl=$(kubectl version --client -o json 2>/dev/null | jq -r '.clientVersion.gitVersion')
+  v_helm=$(helm version --short 2>/dev/null)
+  v_ytt=$(ytt version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_kapp=$(kapp version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_k9s=$(k9s version -s 2>&1 | grep -Eo '[0-9.]+' | head -n1)
+  v_imgpkg=$(imgpkg version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_tanzu=$(tanzu version | grep ^version | grep -Eo '[0-9.]+' | head -n1)
+  v_velero=$(velero version 2>/dev/null | grep -Eo 'v[0-9.]+' | head -n1)
+  v_yq=$(yq --version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_vendir=$(vendir version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_kbld=$(kbld version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_kctrl=$(kctrl version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_image="${IMAGE_VERSION:-unknown}"
+
+  # Fallback to "?" if version is empty
+  fallback() { [[ -z "$1" || "$1" == "null" ]] && echo "?" || echo "$1"; }
+
+  # Print header
+  echo -e "\033[1;34mInstalled Tool Versions:\033[0m"
+  echo
+
+  # Print formatted table
+  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "kubectl" "$(fallback "$v_kubectl")"
+  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "helm" "$(fallback "$v_helm")"
+  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "ytt" "$(fallback "$v_ytt")"
+
+  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "kapp" "$(fallback "$v_kapp")"
+  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "k9s" "$(fallback "$v_k9s")"
+  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "imgpkg" "$(fallback "$v_imgpkg")"
+
+  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "tanzu" "$(fallback "$v_tanzu")"
+  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "velero" "$(fallback "$v_velero")"
+  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "yq" "$(fallback "$v_yq")"
+
+  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "vendir" "$(fallback "$v_vendir")"
+  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "kbld" "$(fallback "$v_kbld")"
+  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "kctrl" "$(fallback "$v_kctrl")"
+
+  echo
+  printf "\033[34mImage Version\033[0m: \033[32m%s\033[0m\n" "$v_image"
+  printf "\033[34mMaintained by\033[0m: \033[32mdwhicker@bifrost.cc\033[0m\n"
+  echo
+}
+
+versions
+echo "K8s CLI environment loaded." | lolcat
+echo

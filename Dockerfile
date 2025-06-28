@@ -5,9 +5,11 @@ ARG TARGET_OS=linux
 ARG TARGET_ARCH=arm64
 
 FROM alpine:3.22 AS builder
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 ARG TARGET_OS
 ARG TARGET_ARCH
+ARG IMAGE_VERSION
 
 ARG YQ_VERSION
 ARG HELM_VERSION
@@ -22,11 +24,16 @@ ARG TANZU_CLI_VERSION
 ARG VELERO_VERSION
 ARG KUBECTL_VERSION
 
-RUN apk add --no-cache curl tar git
+LABEL org.opencontainers.image.title="k8s-cli-toolkit" \
+      org.opencontainers.image.description="Multi-arch container with Kubernetes CLI tools" \
+      org.opencontainers.image.source="https://github.com/dewab/docker-k8s-tools" \
+      org.opencontainers.image.version="${IMAGE_VERSION}" \
+      org.opencontainers.image.authors="dwhicker@bifrost.cc"
+
+RUN apk add --no-cache curl git tar
 
 # Install directory
-RUN mkdir -p /k8s/bin
-ENV PATH="/k8s/bin:$PATH"
+RUN mkdir -p /k8s/bin && echo 'export PATH="/k8s/bin:$PATH"' >> /etc/profile.d/k8s-path.sh
 
 WORKDIR /tmp
 
@@ -69,9 +76,16 @@ RUN curl -fsSL -o /k8s/bin/imgpkg "https://github.com/carvel-dev/imgpkg/releases
 RUN curl -fsSL -o /k8s/bin/vendir "https://github.com/carvel-dev/vendir/releases/download/v${VENDIR_VERSION}/vendir-${TARGET_OS}-${TARGET_ARCH}" \
  && chmod +x /k8s/bin/vendir
 
+# Declare ARG if not already in scope
+ARG K9S_VERSION
+
 # -- k9s
-RUN curl -fsSL -o k9s.tar.gz "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_${TARGET_OS}_${TARGET_ARCH}.tar.gz" \
- && tar -xzf k9s.tar.gz && mv k9s /k8s/bin/k9s && chmod +x /k8s/bin/k9s && rm k9s.tar.gz
+RUN echo "K9S_VERSION=${K9S_VERSION}, TARGET_OS=${TARGET_OS}, TARGET_ARCH=${TARGET_ARCH}" && \
+    K9S_OS=$(echo "$TARGET_OS" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') && \
+    K9S_URL="https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_${K9S_OS}_${TARGET_ARCH}.tar.gz" && \
+    echo "⏬ Downloading: $K9S_URL" && \
+    curl -fSL -o k9s.tar.gz "$K9S_URL" && \
+    tar -xzf k9s.tar.gz && mv k9s /k8s/bin/k9s && chmod +x /k8s/bin/k9s && rm k9s.tar.gz
 
 # -- tanzu CLI
 RUN TANZU_FILENAME="tanzu-cli-${TARGET_OS}-${TARGET_ARCH}.tar.gz" \
@@ -99,25 +113,34 @@ RUN curl -fsSL -o /k8s/bin/kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION
 # ================================
 FROM alpine:3.22
 
-# Create non-root user
-RUN addgroup -S k8s && adduser -S -G k8s k8suser
+RUN apk add --no-cache socat zsh zsh-vcs jq git ca-certificates
 
-# Install shell and socat
-RUN apk add --no-cache zsh socat
+# Create user with /k8s as home
+RUN addgroup -S k8s && adduser -S -G k8s -h /k8s k8suser
 
-# Set environment
-ENV PATH="/k8s/bin:$PATH"
+# Ensure home directory has correct ownership
+RUN chown -R k8suser:k8s /k8s
 
 # Copy tools from builder
 COPY --from=builder /k8s /k8s
 
-# Ownership and working directory
-RUN chown -R k8suser:k8s /k8s
+# Copy supporting files
+COPY files/zshrc /k8s/.zshrc
+COPY files/banner.txt /banner.txt
+COPY files/entrypoint.sh /entrypoint.sh
+
+# Ensure correct permissions before switching user
+RUN chmod +x /entrypoint.sh && \
+    chown -R k8suser:k8s /k8s && \
+    mkdir /work && chown k8suser:k8s /work
+
+# Set up environment
+ENV PATH="/k8s/bin:$PATH"
+ENV HOME=/k8s
+WORKDIR /work
+
 USER k8suser
-WORKDIR /k8s
 
-# Expose port 19191 for socat forwarding
+# Expose port and run entrypoint
 EXPOSE 19191
-
-# Start socat and zsh interactively
-CMD ["sh", "-c", "socat TCP-LISTEN:19191,fork,reuseaddr TCP:127.0.0.1:80 & exec zsh"]
+CMD ["/entrypoint.sh"]

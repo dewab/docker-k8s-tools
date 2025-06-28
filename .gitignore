@@ -1,0 +1,63 @@
+# ======================================
+# Docker and Kubernetes CLI Toolkit
+# ======================================
+
+# Build artifacts
+*.tar.gz
+*.tgz
+*.zip
+*.bak
+*.tmp
+*.log
+
+# Docker files
+.kube/
+.kubectl/
+docker-compose.override.yml
+.dockerignore
+
+# Ignore Docker build cache if used
+cache/
+tmp/
+
+# Buildx output
+build/
+dist/
+output/
+
+# Binaries or tools accidentally checked in
+/k8s/bin/
+/k8s/*
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.swn.*
+*~
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Git metadata (safety)
+.git/
+.gitignore
+
+# Scripts
+build.sh~
+deploy.sh~
+env.sh~
+.env
+
+# Optional: ignore VS Code devcontainers
+.devcontainer/
+
+# Node, Python, or Go (if used later)
+node_modules/
+__pycache__/
+*.py[cod]
+vendor/
