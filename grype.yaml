@@ -1,0 +1,15 @@
+# grype.yaml
+
+fail-on-severity: medium
+
+# Optional: exclude low/negligible matches from output
+severity:
+  - medium
+  - high
+  - critical
+
+exclude:
+  # Ignore all unfixed issues (e.g., CVEs with no patch or marked WONTFIX)
+  - vulnerability:
+      fix:
+        state: "wont-fix"  # also accepts "not-fixed" if needed

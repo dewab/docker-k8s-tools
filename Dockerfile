@@ -2,9 +2,9 @@
 # Builder Stage: Install Tools
 # ================================
 ARG TARGET_OS=${TARGET_OS:-linux}
-ARG TARGET_ARCH=${TARGETARCH:-amd64}
+ARG TARGET_ARCH=${TARGET_ARCH:-amd64}
 
-FROM debian:bullseye AS builder
+FROM debian:bullseye-slim AS builder
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 ARG TARGET_OS
@@ -83,7 +83,7 @@ RUN set -e && \
 # ================================
 # Final Image
 # ================================
-FROM debian:bullseye
+FROM debian:bullseye-slim
 
 ARG TARGET_ARCH
 
@@ -101,12 +101,22 @@ RUN groupadd -r k8s && useradd -m -d /k8s -s /bin/zsh -g k8s k8suser && \
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy all supporting files in one layer
-COPY files/zshrc files/banner.txt files/entrypoint.sh files/kubectl-vsphere /tmp/
+COPY files/zshrc \
+    files/banner.txt \
+    files/entrypoint.sh \
+    files/kubectl-vsphere \
+    files/tkgs-login \
+    files/tmc-get-kubeconfigs \
+    /tmp/
 
 # Append zshrc to system-wide /etc/zsh/zshrc, move other files, and handle kubectl-vsphere
 RUN cat /tmp/zshrc >> /etc/zsh/zshrc \
     && mv /tmp/banner.txt /banner.txt \
     && mv /tmp/entrypoint.sh /entrypoint.sh \
+    && mv /tmp/tkgs-login /usr/local/bin/tkgs-login \
+    && chmod +x /usr/local/bin/tkgs-login \
+    && mv /tmp/tmc-get-kubeconfigs /usr/local/bin/tmc-get-kubeconfigs \
+    && chmod +x /usr/local/bin/tmc-get-kubeconfigs \
     && chmod +x /entrypoint.sh \
     && mkdir -p /work && chown k8suser:k8s /work \
     && if [ "$TARGET_ARCH" = "amd64" ]; then \

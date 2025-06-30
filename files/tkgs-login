@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Verify required commands are in PATH
+for cmd in kubectl kubectl-vsphere tanzu yq; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Error: '$cmd' is not in your PATH. Please install or add it to your PATH." >&2
+        exit 1
+    fi
+done
+
+# Set default CONFIG_FILE based on XDG_CONFIG_HOME or HOME
+if [[ -n "${XDG_CONFIG_HOME:-}" && -d "$XDG_CONFIG_HOME" ]]; then
+    CONFIG_FILE="$XDG_CONFIG_HOME/tkgs-login/config.yaml"
+elif [[ -n "${HOME:-}" ]]; then
+    CONFIG_FILE="$HOME/.tkg-login.conf"
+else
+    CONFIG_FILE="tkgs-login-config.yaml"
+fi
+GENERIC_PASSWORD=""
+INSECURE_FLAG=""
+VERBOSE=false
+KUBECONFIG_ARG=""
+
+show_help() {
+    cat <<EOF
+Usage: $(basename "$0") [options]
+
+Options:
+  -c, --config <file>      Path to config YAML file (default: tkgs-login-config.yaml)
+  -p, --password <pass>    Password for all supervisors (overrides config/env)
+  -i, --insecure           Skip TLS verification (overrides config file)
+  -k, --kubeconfig <file>  Set KUBECONFIG to the specified file
+  -v, --verbose            Show detailed output
+  -h, --help               Show this help message and exit
+
+Environment:
+  KUBECTL_VSPHERE_PASSWORD If set, used as the password unless overridden
+
+EOF
+}
+
+# Parse command line options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -c|--config)
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        -p|--password)
+            GENERIC_PASSWORD="$2"
+            shift 2
+            ;;
+        -i|--insecure)
+            INSECURE_FLAG="--insecure-skip-tls-verify"
+            shift
+            ;;
+        -k|--kubeconfig)
+            KUBECONFIG_ARG="--kubeconfig $2"
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Error: Config file '$CONFIG_FILE' not found." >&2
+    exit 1
+fi
+
+# Loop through each supervisor as a block of YAML
+for i in $(yq e '.supervisors | keys | .[]' "$CONFIG_FILE"); do
+    SUP_BLOCK=$(yq e ".supervisors[$i]" "$CONFIG_FILE")
+    SERVER=$(echo "$SUP_BLOCK" | yq e '.name' -)
+    USER=$(echo "$SUP_BLOCK" | yq e '.username' -)
+    YAML_PASSWORD=$(echo "$SUP_BLOCK" | yq e '.password' -)
+    INSECURE_YAML=$(echo "$SUP_BLOCK" | yq e '.insecure' -)
+
+    # Respect CLI --insecure flag if set, otherwise use YAML
+    [[ -z "$INSECURE_FLAG" && "$INSECURE_YAML" == "true" ]] && INSECURE_FLAG="--insecure-skip-tls-verify"
+
+    # Determine password to use
+    if [[ -n "$GENERIC_PASSWORD" ]]; then
+        export KUBECTL_VSPHERE_PASSWORD="$GENERIC_PASSWORD"
+    elif [[ -n "$YAML_PASSWORD" && "$YAML_PASSWORD" != "null" ]]; then
+        export KUBECTL_VSPHERE_PASSWORD="$YAML_PASSWORD"
+    fi
+
+    echo "----------------------------------------"
+    echo "➡️  Logging into Supervisor: $SERVER as $USER"
+
+    if $VERBOSE; then
+        kubectl vsphere login --vsphere-username "$USER" --server "$SERVER" $INSECURE_FLAG $KUBECONFIG_ARG || {
+            echo "ERROR: Failed to login to Supervisor $SERVER as $USER" >&2
+            exit 1
+        }
+    else
+        if ! kubectl vsphere login --vsphere-username "$USER" --server "$SERVER" $INSECURE_FLAG $KUBECONFIG_ARG >/dev/null 2>&1; then
+            echo "ERROR: Failed to login to Supervisor $SERVER as $USER" >&2
+            exit 1
+        fi
+    fi
+
+    WORKLOAD_KEYS=$(yq e ".supervisors[$i].workloads | keys | .[]" "$CONFIG_FILE" 2>/dev/null || true)
+    if [[ -z "$WORKLOAD_KEYS" ]]; then
+        echo "⚠️  No workloads defined for Supervisor $SERVER — skipping clusters."
+        echo "----------------------------------------"
+        continue
+    fi
+
+    for j in $WORKLOAD_KEYS; do
+        WORKLOAD_BLOCK=$(yq e ".supervisors[$i].workloads[$j]" "$CONFIG_FILE")
+        NAMESPACE=$(echo "$WORKLOAD_BLOCK" | yq e '.namespace' -)
+
+        for k in $(echo "$WORKLOAD_BLOCK" | yq e '.clusters | keys | .[]' -); do
+            CLUSTER=$(echo "$WORKLOAD_BLOCK" | yq e ".clusters[$k]" -)
+            echo "➡️  Logging into cluster: $CLUSTER (namespace: $NAMESPACE)"
+
+            if $VERBOSE; then
+                tanzu cluster kubeconfig get "$CLUSTER" -n "$NAMESPACE" --admin $KUBECONFIG_ARG || {
+                    echo "ERROR: Failed to get kubeconfig for cluster $CLUSTER in namespace $NAMESPACE" >&2
+                }
+            else
+                if ! tanzu cluster kubeconfig get "$CLUSTER" -n "$NAMESPACE" --admin $KUBECONFIG_ARG >/dev/null 2>&1; then
+                    echo "ERROR: Failed to get kubeconfig for cluster $CLUSTER in namespace $NAMESPACE" >&2
+                fi
+            fi
+        done
+    done
+
+    echo "----------------------------------------"
+done
