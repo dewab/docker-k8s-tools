@@ -43,12 +43,14 @@ if [ -d /tanzu ]; then
   cp -r /tanzu/* /k8s/.config/tanzu/
 fi
 
-echo "🔑 Fixing ownership of /k8s"
-chown -R k8suser:k8s /k8s 2>/dev/null || true
+# echo "🔑 Fixing ownership of /k8s"
+# chown -R k8suser:k8s /k8s 2>/dev/null || true
 
 # Touch /k8s/.zshrc to ensure it exists
 touch /k8s/.zshrc
 
 # Drop to k8suser for the shell
 # exec su - k8suser -c zsh
-su - k8suser -c zsh
+# su - k8suser -c zsh
+
+zsh

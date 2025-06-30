@@ -131,5 +131,10 @@ ENV PATH="/usr/local/bin:$PATH"
 ENV HOME=/k8s
 WORKDIR /work
 
+RUN chown -R k8suser:k8s /usr/local/share/ca-certificates /etc/ssl/certs
+
 EXPOSE 19191
+
+USER k8suser
+
 CMD ["/entrypoint.sh"]

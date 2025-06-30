@@ -249,6 +249,22 @@ function tanzu_init() {
   echo "🎉 Tanzu plugins initialized successfully."
 }
 
+hints() {
+  echo -e "
+
+\033[1;33mYou will need to create a Tanzu context to get started.\033[0m
+\033[1;36m tanzu tmc context create <context-name> -e <tmc.server.name> -i pinniped\033[0m
+\033[1;36m tanzu context create <context-name> -e <tmc.server.name> -i pinniped\033[0m
+
+\033[1;33mOnce you have a context created, you can generate kubeconfigs for each TMC cluster with:\033[0m
+\033[1;36m tmc-get-kubeconfigs\033[0m
+
+\033[1;33mTo log in to vSphere Supervisor clusters (vKS, TKGS, etc.), you can use:\033[0m
+\033[1;36m kubectl vsphere login --server <vSphere-API-URL> --vsphere-username <username> --insecure-skip-tls-verify\033[0m
+
+"
+}
+
 versions
 echo
 if tanzu_needs_init; then
@@ -257,5 +273,5 @@ else
   echo "ℹ️  Tanzu already initialized."
 fi
 echo
-echo "K8s CLI environment loaded."
+echo "K8s CLI environment loaded.  Type 'hints' for usage tips."
 echo
