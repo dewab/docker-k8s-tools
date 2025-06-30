@@ -31,6 +31,7 @@ LABEL org.opencontainers.image.title="k8s-cli-toolkit" \
       org.opencontainers.image.authors="dwhicker@bifrost.cc"
 
 RUN apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
       curl git ca-certificates tar jq && \
     rm -rf /var/lib/apt/lists/*
