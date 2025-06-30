@@ -40,14 +40,14 @@ function git_prompt_info() {
   [[ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]] && untracked="✖"
 
   # Compose info string with colors
-  info="%F{blue}[%F{cyan}repo:%f%F{yellow}${repo}%f"
-  info+=" %F{cyan}branch:%f%F{yellow}${branch}%f"
+  info="%F{blue}[ %F{cyan}repo: %f%F{yellow}${repo}%f"
+  info+=" %F{cyan}branch: %f%F{yellow}${branch}%f"
   [[ "$ahead" -gt 0 ]] && info+=" %F{green}⬆$ahead%f"
   [[ "$behind" -gt 0 ]] && info+=" %F{red}⬇$behind%f"
   [[ -n "$dirty" ]] && info+=" %F{red}$dirty%f"
   [[ -n "$staged" ]] && info+=" %F{magenta}$staged%f"
   [[ -n "$untracked" ]] && info+=" %F{yellow}$untracked%f"
-  info+="%F{blue}]%f"
+  info+="%F{blue} ]%f"
 
   echo "$info"
 }
@@ -61,7 +61,7 @@ function kube_prompt_info() {
   if [[ "$tanzu_ctx" == "There is no active context" || -z "$tanzu_ctx" ]]; then
     tanzu_ctx="none"
   fi
-  [[ -n "$ctx" ]] && echo "%F{blue}[%F{cyan}cluster:%f%F{yellow}${ctx}%f%F{blue} / %F{cyan}namespace:%f%F{yellow}${ns:-default}%f%F{blue} / %F{cyan}tanzu:%f%F{yellow}${tanzu_ctx}%f%F{blue}]%f"
+  [[ -n "$ctx" ]] && echo "%F{blue}[ %F{cyan}cluster: %f%F{yellow}${ctx}%f%F{blue} / %F{cyan}namespace :%f%F{yellow}${ns:-default}%f%F{blue} / %F{cyan}tanzu: %f%F{yellow}${tanzu_ctx}%f%F{blue} ]%f"
 }
 
 autoload -Uz vcs_info
@@ -70,8 +70,9 @@ precmd() { vcs_info }
 setopt PROMPT_SUBST
 
 # Final prompt using kube_prompt_info and VCS info
-PROMPT='$(kube_prompt_info) $(git_prompt_info)
+PROMPT=' %F{blue}[ %F{cyan}cwd: %f%F{yellow}${PWD}%f%F{blue} ]%f $(kube_prompt_info) $(git_prompt_info)
 %F{magenta}☸️%f %% '
+
 
 # Git info formatting
 zstyle ':vcs_info:git:*' formats '%F{red} %b%f'
