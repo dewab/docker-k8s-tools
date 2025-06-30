@@ -1,15 +1,16 @@
 #!/bin/bash
 # generate-env.sh
 
-set -e
+set -euo pipefail
 
-print_env() {
+# For GitHub Actions: output for use in later steps
+append_to_github_env() {
   local var="$1"
   local val="$2"
   if [[ -n "$val" ]]; then
-    echo "ENV ${var}=${val}"
+    echo "${var}=${val}" >> "$GITHUB_ENV"
   else
-    echo "# ENV ${var}= (not found)"
+    echo "# Skipping unset ${var}" >&2
   fi
 }
 
@@ -33,16 +34,12 @@ TANZU_CLI_VERSION=$(get_latest_github_release "vmware-tanzu/tanzu-cli")
 VELERO_VERSION=$(get_latest_github_release "vmware-tanzu/velero")
 KUBECTL_VERSION=$(curl -fsSL https://storage.googleapis.com/kubernetes-release/release/stable.txt | sed 's/^v//')
 
-# Print as Docker ENV
-print_env YQ_VERSION "$YQ_VERSION"
-print_env HELM_VERSION "$HELM_VERSION"
-print_env YTT_VERSION "$YTT_VERSION"
-print_env KAPP_VERSION "$KAPP_VERSION"
-print_env KCTRL_VERSION "$KCTRL_VERSION"
-print_env KBLD_VERSION "$KBLD_VERSION"
-print_env IMGPKG_VERSION "$IMGPKG_VERSION"
-print_env VENDIR_VERSION "$VENDIR_VERSION"
-print_env K9S_VERSION "$K9S_VERSION"
-print_env TANZU_CLI_VERSION "$TANZU_CLI_VERSION"
-print_env VELERO_VERSION "$VELERO_VERSION"
-print_env KUBECTL_VERSION "$KUBECTL_VERSION"
+# Export and append to GitHub Actions environment
+for var in YQ_VERSION HELM_VERSION YTT_VERSION KAPP_VERSION KCTRL_VERSION \
+           KBLD_VERSION IMGPKG_VERSION VENDIR_VERSION K9S_VERSION \
+           TANZU_CLI_VERSION VELERO_VERSION KUBECTL_VERSION; do
+  append_to_github_env "$var" "${!var:-}"
+done
+
+# Add the image version (e.g. Git commit hash)
+echo "IMAGE_VERSION=${GITHUB_SHA}" >> "$GITHUB_ENV"

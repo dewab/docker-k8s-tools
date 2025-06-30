@@ -24,4 +24,4 @@ repos:
     hooks:
       - id: shellcheck
         files: \.sh$
-        args: [ "--exclude=SC2086", "--exclude=SC2054" ]
+        args: [ "--exclude=SC2086", "--exclude=SC2054", "--exclude=SC2034" ]

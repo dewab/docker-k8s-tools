@@ -3,11 +3,11 @@ name: Build and Push to GHCR
 on:
   push:
     branches:
-      - main  # or 'master', whichever your default branch is
+      - main
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}  # will be lowercase
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -15,7 +15,7 @@ jobs:
 
     permissions:
       contents: read
-      packages: write  # needed to push to GHCR
+      packages: write
 
     steps:
       - name: Checkout code
@@ -31,7 +31,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push image
+      - name: Generate environment variables
+        run: |
+          chmod +x ./generate-env.sh
+          ./generate-env.sh
+        env:
+          GITHUB_ENV: $GITHUB_ENV
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -40,3 +48,17 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            YQ_VERSION=${{ env.YQ_VERSION }}
+            HELM_VERSION=${{ env.HELM_VERSION }}
+            YTT_VERSION=${{ env.YTT_VERSION }}
+            KAPP_VERSION=${{ env.KAPP_VERSION }}
+            KCTRL_VERSION=${{ env.KCTRL_VERSION }}
+            KBLD_VERSION=${{ env.KBLD_VERSION }}
+            IMGPKG_VERSION=${{ env.IMGPKG_VERSION }}
+            VENDIR_VERSION=${{ env.VENDIR_VERSION }}
+            K9S_VERSION=${{ env.K9S_VERSION }}
+            TANZU_CLI_VERSION=${{ env.TANZU_CLI_VERSION }}
+            VELERO_VERSION=${{ env.VELERO_VERSION }}
+            KUBECTL_VERSION=${{ env.KUBECTL_VERSION }}
+            IMAGE_VERSION=${{ env.IMAGE_VERSION }}
