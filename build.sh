@@ -19,15 +19,15 @@ for arg in "$@"; do
 done
 
 # ────────────────────────────────────────────────
-# Check .env file
+# Check .env.docker file
 # ────────────────────────────────────────────────
-if [[ ! -f .env ]]; then
-  echo "❌ Error: .env file not found."
+if [[ ! -f .env.docker ]]; then
+  echo "❌ Error: .env.docker file not found."
   exit 1
 fi
 
 # ────────────────────────────────────────────────
-# Build args from .env (expecting 'ENV VAR=value' lines)
+# Build args from .env.docker (expecting 'ENV VAR=value' lines)
 # ────────────────────────────────────────────────
 BUILD_ARGS=()
 while IFS= read -r line; do
@@ -36,12 +36,12 @@ while IFS= read -r line; do
     val="${BASH_REMATCH[2]}"
     BUILD_ARGS+=("--build-arg" "${var}=${val}")
   fi
-done < .env
+done < .env.docker
 
 # ────────────────────────────────────────────────
 # Extract image version
 # ────────────────────────────────────────────────
-IMAGE_VERSION=$(awk -F= '/^ENV IMAGE_VERSION=/{print $2}' .env | tr -d '"')
+IMAGE_VERSION=$(awk -F= '/^ENV IMAGE_VERSION=/{print $2}' .env.docker | tr -d '"')
 IMAGE_NAME="dewab/k8s-cli-toolkit"
 
 # ────────────────────────────────────────────────
@@ -59,8 +59,9 @@ echo
 # Construct build command
 # ────────────────────────────────────────────────
 BUILD_CMD=(
+#   --platform linux/amd64,linux/arm64
   docker buildx build
-  --platform linux/amd64,linux/arm64
+  --platform linux/amd64
   "${BUILD_ARGS[@]}"
   -t "${IMAGE_NAME}:latest"
 )

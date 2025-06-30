@@ -22,9 +22,11 @@ zstyle ':vcs_info:*' check-for-changes true
 function git_prompt_info() {
   git rev-parse --is-inside-work-tree &>/dev/null || return
 
-  local ahead behind dirty untracked branch
-  local info=""
+  local repo branch ahead behind dirty untracked staged info=""
 
+  # Repo path from remote URL, strip protocol/host and .git
+  repo=$(git remote get-url origin 2>/dev/null | sed -E 's#(https?://|git@)[^/:]+[:/]##; s/\\.git$//')
+  # Branch name
   branch=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null)
 
   # ahead/behind
@@ -32,24 +34,34 @@ function git_prompt_info() {
   ahead=$(echo $raw | awk '{print $2}')
   behind=$(echo $raw | awk '{print $1}')
 
-  [[ "$ahead" -gt 0 ]] && info+="%F{green}⬆$ahead%f "
-  [[ "$behind" -gt 0 ]] && info+="%F{red}⬇$behind%f "
-
-  # status symbols
+  # Status symbols
   git diff --quiet --ignore-submodules HEAD &>/dev/null || dirty="✱"
-  git diff --cached --quiet --ignore-submodules HEAD &>/dev/null || dirty+="✚"
-  [[ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]] && dirty+="✖"
+  git diff --cached --quiet --ignore-submodules HEAD &>/dev/null || staged="✚"
+  [[ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]] && untracked="✖"
 
-  echo "$branch $info$dirty"
+  # Compose info string with colors
+  info="%F{blue}[%F{cyan}repo:%f%F{yellow}${repo}%f"
+  info+=" %F{cyan}branch:%f%F{yellow}${branch}%f"
+  [[ "$ahead" -gt 0 ]] && info+=" %F{green}⬆$ahead%f"
+  [[ "$behind" -gt 0 ]] && info+=" %F{red}⬇$behind%f"
+  [[ -n "$dirty" ]] && info+=" %F{red}$dirty%f"
+  [[ -n "$staged" ]] && info+=" %F{magenta}$staged%f"
+  [[ -n "$untracked" ]] && info+=" %F{yellow}$untracked%f"
+  info+="%F{blue}]%f"
+
+  echo "$info"
 }
 
-# Kubernetes context and namespace
-# Kubernetes context and namespace
+# Kubernetes context, namespace, and tanzu context
 function kube_prompt_info() {
-  local ctx ns
+  local ctx ns tanzu_ctx
   ctx=$(kubectl config current-context 2>/dev/null)
   ns=$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)
-  [[ -n "$ctx" ]] && echo "%F{blue}[%F{cyan}cluster:%f%F{yellow}${ctx}%f%F{blue} / %F{cyan}namespace:%f%F{yellow}${ns:-default}%f%F{blue}]%f"
+  tanzu_ctx=$(tanzu context current --short 2>/dev/null | head -n1)
+  if [[ "$tanzu_ctx" == "There is no active context" || -z "$tanzu_ctx" ]]; then
+    tanzu_ctx="none"
+  fi
+  [[ -n "$ctx" ]] && echo "%F{blue}[%F{cyan}cluster:%f%F{yellow}${ctx}%f%F{blue} / %F{cyan}namespace:%f%F{yellow}${ns:-default}%f%F{blue} / %F{cyan}tanzu:%f%F{yellow}${tanzu_ctx}%f%F{blue}]%f"
 }
 
 autoload -Uz vcs_info
@@ -58,7 +70,7 @@ precmd() { vcs_info }
 setopt PROMPT_SUBST
 
 # Final prompt using kube_prompt_info and VCS info
-PROMPT='$(kube_prompt_info) ${vcs_info_msg_0_}
+PROMPT='$(kube_prompt_info) $(git_prompt_info)
 %F{magenta}☸️%f %% '
 
 # Git info formatting
@@ -84,10 +96,13 @@ function try_source_completion() {
       velero)
         source <($1 completion zsh)
         ;;
-      yq)
-        # yq has no native completion as of v4.x, skipping
+      vendir)
+        $1 completion zsh | grep -v '^Succeeded' >/tmp/_${1}_completion.zsh 2>/dev/null && source /tmp/_${1}_completion.zsh
         ;;
-      ytt|kapp|kbld|imgpkg|vendir|kctrl)
+      yq)
+        source <($1 completion zsh)
+        ;;
+      ytt|kapp|kbld|imgpkg|kctrl)
         $1 completion zsh >/tmp/_${1}_completion.zsh 2>/dev/null && source /tmp/_${1}_completion.zsh
         ;;
     esac
@@ -104,17 +119,23 @@ export PATH="/k8s/bin:$PATH"
 # Aliases
 alias k=kubectl
 alias h=helm
+alias t=tanzu
 
-# Function: versions
-# Function: versions
-# Function: versions
-# Function: versions
+# History
+export HISTFILE=${HOME}/.zsh_history
+export HISTSIZE=10000
+export SAVEHIST=10000
+setopt INC_APPEND_HISTORY       # Append commands to the history file as they are typed
+setopt HIST_IGNORE_DUPS         # Don't record duplicate commands
+setopt HIST_REDUCE_BLANKS       # Remove superfluous blanks before recording entry
+setopt SHARE_HISTORY            # Share command history across terminals
+
 # Function: versions
 versions() {
-  clear
-
   # Banner
+  echo
   cat /banner.txt
+  echo
 
   echo -e "\033[1;34mWelcome to the Kubernetes CLI Toolkit!\033[0m"
   echo -e "\033[1;34mTools like kubectl, helm, ytt, kapp, k9s and more are ready to go.\033[0m"
@@ -129,7 +150,7 @@ versions() {
   v_imgpkg=$(imgpkg version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
   v_tanzu=$(tanzu version | grep ^version | grep -Eo '[0-9.]+' | head -n1)
   v_velero=$(velero version 2>/dev/null | grep -Eo 'v[0-9.]+' | head -n1)
-  v_yq=$(yq --version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
+  v_yq=$(yq --version 2>/dev/null | grep -Eo '[0-9.]+$')
   v_vendir=$(vendir version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
   v_kbld=$(kbld version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
   v_kctrl=$(kctrl version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
@@ -165,6 +186,76 @@ versions() {
   echo
 }
 
+# Function: tanzu_needs_init
+# Returns 0 if Tanzu needs initialization, 1 otherwise
+function tanzu_needs_init() {
+  local tanzu_dir="$HOME/.config/tanzu"
+  local config_yaml="$tanzu_dir/config.yaml"
+  if [ ! -d "$tanzu_dir" ] || [ -z "$(ls -A "$tanzu_dir" 2>/dev/null)" ]; then
+    return 0
+  elif [ -f "$config_yaml" ]; then
+    # Check if config.yaml contains only '{}', possibly with whitespace
+    local content
+    content=$(tr -d '\n\r\t ' < "$config_yaml")
+    if [ "$content" = "{}" ]; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+function tanzu_init() {
+  export TANZU_CLI_CEIP_OPT_IN_PROMPT_ANSWER=No
+  echo "🔧 Initializing Tanzu plugins..."
+
+  tanzu config eula accept
+
+  local plugin_groups=(
+    "vmware-tanzucli/essentials"
+    "vmware-tmc/default"
+    "vmware-tkg/default"
+    "vmware-vsphere/default"
+  )
+
+  for group in "${plugin_groups[@]}"; do
+    echo "📦 Installing plugin group: $group"
+
+    # Get current plugins (before install)
+    local -a before_plugins
+    while IFS= read -r line; do
+      before_plugins+=("$line")
+    done < <(tanzu plugin list -o json | jq -r '.[] | "\(.name):\(.target)"' | sort -u)
+
+    # Install plugins quietly
+    tanzu plugin install all --group "$group" > /dev/null 2>&1
+
+    # Get plugins after install
+    local -a after_plugins
+    while IFS= read -r line; do
+      after_plugins+=("$line")
+    done < <(tanzu plugin list -o json | jq -r '.[] | "\(.name):\(.target)"' | sort -u)
+
+    # Compare and count newly added plugins
+    local -i new_count=0
+    for plugin in "${after_plugins[@]}"; do
+      if [[ ! " ${before_plugins[*]} " == *" $plugin "* ]]; then
+        ((new_count++))
+      fi
+    done
+
+    echo "✅ Installed ${new_count} plugins from group: $group"
+  done
+
+  echo "🎉 Tanzu plugins initialized successfully."
+}
+
 versions
-echo "K8s CLI environment loaded." | lolcat
+echo
+if tanzu_needs_init; then
+  tanzu_init
+else
+  echo "ℹ️  Tanzu already initialized."
+fi
+echo
+echo "K8s CLI environment loaded."
 echo

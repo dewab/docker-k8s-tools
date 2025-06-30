@@ -1,0 +1,18 @@
+services:
+  k8s-cli-toolkit:
+    image: dewab/k8s-cli-toolkit:latest
+    platform: linux/amd64
+    container_name: k8s-cli
+    tty: true
+    stdin_open: true
+    ports:
+      - "19191:80"
+    volumes:
+      - k8s_home:/k8s:rw
+      - .:/work:rw
+    environment:
+      - HOME=/k8s
+    working_dir: /work
+
+volumes:
+  k8s_home:
