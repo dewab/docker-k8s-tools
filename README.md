@@ -1,6 +1,6 @@
-# ![Build Status](https://github.com/dewab/docker-k8s-tools/actions/workflows/build.yml/badge.svg)
-
 # 🧰 Kubernetes CLI Toolkit (Multi-Arch)
+
+[![Build and Push to GHCR](https://github.com/dewab/docker-k8s-tools/actions/workflows/build.yaml/badge.svg)](https://github.com/dewab/docker-k8s-tools/actions/workflows/build.yaml)
 
 A compact, multi-architecture Docker image bundling essential Kubernetes tooling for day-to-day cluster and deployment operations.
 
