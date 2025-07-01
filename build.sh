@@ -19,29 +19,29 @@ for arg in "$@"; do
 done
 
 # ────────────────────────────────────────────────
-# Check .env.docker file
+# Generate .env.docker using generate-env.sh
 # ────────────────────────────────────────────────
-if [[ ! -f .env.docker ]]; then
-  echo "❌ Error: .env.docker file not found."
-  exit 1
-fi
+GITHUB_ENV="$(mktemp)"
+export GITHUB_ENV
+export GITHUB_SHA="local"
+./generate-env.sh
 
 # ────────────────────────────────────────────────
-# Build args from .env.docker (expecting 'ENV VAR=value' lines)
+# Build args from generated GITHUB_ENV (expecting 'VAR=value' lines)
 # ────────────────────────────────────────────────
 BUILD_ARGS=()
 while IFS= read -r line; do
-  if [[ "$line" =~ ^ENV\ ([A-Za-z_][A-Za-z0-9_]*)=(.*) ]]; then
+  if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*) ]]; then
     var="${BASH_REMATCH[1]}"
     val="${BASH_REMATCH[2]}"
     BUILD_ARGS+=("--build-arg" "${var}=${val}")
   fi
-done < .env.docker
+done < "$GITHUB_ENV"
 
 # ────────────────────────────────────────────────
 # Extract image version
 # ────────────────────────────────────────────────
-IMAGE_VERSION=$(awk -F= '/^ENV IMAGE_VERSION=/{print $2}' .env.docker | tr -d '"')
+IMAGE_VERSION=$(awk -F= '/^IMAGE_VERSION=/{print $2}' "$GITHUB_ENV" | tr -d '"')
 IMAGE_NAME="dewab/k8s-cli-toolkit"
 
 # ────────────────────────────────────────────────

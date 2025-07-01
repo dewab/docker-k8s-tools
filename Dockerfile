@@ -33,7 +33,7 @@ LABEL org.opencontainers.image.title="k8s-cli-toolkit" \
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-      curl git ca-certificates tar jq && \
+      curl git ca-certificates tar jq binutils && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
@@ -79,6 +79,8 @@ RUN set -e && \
   tar -xzf velero.tar.gz --strip-components=1 -C /usr/local/bin "velero-v${VELERO_VERSION}-${TARGET_OS}-${TARGET_ARCH}/velero" && chmod +x /usr/local/bin/velero && rm velero.tar.gz && \
   # kubectl
   curl -fsSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${TARGET_OS}/${TARGET_ARCH}/kubectl" && chmod +x /usr/local/bin/kubectl
+
+RUN strip --strip-unneeded /usr/local/bin/*
 
 # ================================
 # Final Image

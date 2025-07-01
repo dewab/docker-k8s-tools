@@ -2,9 +2,7 @@
 
 [![Build and Push to GHCR](https://github.com/dewab/docker-k8s-tools/actions/workflows/build.yaml/badge.svg)](https://github.com/dewab/docker-k8s-tools/actions/workflows/build.yaml)
 
-A compact, multi-architecture Docker image bundling essential Kubernetes tooling for day-to-day cluster and deployment operations.
-
-Supports both `amd64` and `arm64` platforms. Ideal for CI pipelines, developer shells, or automation containers.
+This is intended to be an opinionated comprehensive tooling environment for deploying, adminsitering, and maintaining Tanzu (TKGS, Tanzu Mission Control) -based environments.  It designed to ease the tool deployment requirements for adminsitrators, especially those in Windows-based environments.  It provides an interactive shell (ZSH) that has command-line completions enabled for all commands.
 
 ---
 
@@ -36,14 +34,21 @@ docker run --rm -it \
   -v <homevolume>:/k8s \
   -v <cavolume>:/ca \
   -v <manifestdir>:/work \
+  -v ${HOME}/.kube/config:/kubeconfig \
+  -p 19191:80 \
   ghcr.io/dewab/docker-k8s-tools:latest
 ```
 
+Volumes:
+
 - **/k8s**: Persistent home directory for configs, history, and Tanzu plugins.
-- **/ca**: (Optional) Mount a directory with `.crt` or `.pem` files to add custom CAs. These are copied to `/k8s/.ca` and trusted by the system.
-- **/work**: (Optional) Mount your manifests or working directory.
+- **/ca**: (Optional) Mount a directory with `.crt` or `.pem` files to add custom CAs. These are copied to `/k8s/.ca` and trusted by the system.  This can be a one-time mount to populate your certificate authorities.
+- **/work**: (Optional) Mount your manifests or working directory.  it's intended to be a bind-mount.
+- **/kubeconfig**: (Optional) Mount a pre-existing kubeconfig file to have it copied into the container.  This can be a one-time mount to pre-populate your kubeconfig.
 
 You can also map your existing `.kube` directory to `/k8s/.kube/` if you already have kubeconfigs.
+
+Port 19191 is published and redirected to allow for callback redirects on hosts where port 80 requires root (Linux).  The callback URL is *NOT* rewritten (I'm working on this), so to post the return callback, you'd need to change the URL in the browser from 127.0.0.1 to 127.0.0.1:19191.  If running on Windows, you should be able to use `-p 80:80` instead and use the callback URL as written.
 
 ---
 

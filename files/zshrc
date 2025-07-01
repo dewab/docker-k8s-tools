@@ -131,15 +131,14 @@ setopt HIST_IGNORE_DUPS         # Don't record duplicate commands
 setopt HIST_REDUCE_BLANKS       # Remove superfluous blanks before recording entry
 setopt SHARE_HISTORY            # Share command history across terminals
 
-# Function: versions
 versions() {
   # Banner
   echo
   cat /banner.txt
   echo
 
-  echo -e "\033[1;34mWelcome to the Kubernetes CLI Toolkit!\033[0m"
-  echo -e "\033[1;34mTools like kubectl, helm, ytt, kapp, k9s and more are ready to go.\033[0m"
+  echo "${fg[blue]}Welcome to the Kubernetes CLI Toolkit!${reset_color}"
+  echo "${fg[blue]}Tools like kubectl, helm, ytt, kapp, k9s and more are ready to go.${reset_color}"
   echo
 
   # Version variables
@@ -160,30 +159,56 @@ versions() {
   # Fallback to "?" if version is empty
   fallback() { [[ -z "$1" || "$1" == "null" ]] && echo "?" || echo "$1"; }
 
-  # Print header
-  echo -e "\033[1;34mInstalled Tool Versions:\033[0m"
+  # Tool/version arrays
+  local tools=(kubectl helm ytt kapp k9s imgpkg tanzu velero yq vendir kbld kctrl)
+  local versions=(
+    "$(fallback "$v_kubectl")" "$(fallback "$v_helm")" "$(fallback "$v_ytt")" "$(fallback "$v_kapp")"
+    "$(fallback "$v_k9s")" "$(fallback "$v_imgpkg")" "$(fallback "$v_tanzu")" "$(fallback "$v_velero")"
+    "$(fallback "$v_yq")" "$(fallback "$v_vendir")" "$(fallback "$v_kbld")" "$(fallback "$v_kctrl")"
+  )
+
+  # Table border characters (Unicode, but built safely)
+  local H="─" V="│" TL="┌" TR="┐" BL="└" BR="┘" TJ="┬" BJ="┴" CJ="┼"
+  local w=18 cols=4
+
+  # Build top border (Unicode-safe, no tr/printf hacks)
+  local border="${TL}"
+  for ((i=1; i<cols; i++)); do
+    for ((j=0; j<$w; j++)); do border+="$H"; done
+    border+="$TJ"
+  done
+  for ((j=0; j<$w; j++)); do border+="$H"; done
+  border+="$TR"
+  echo "${fg[blue]}$border${reset_color}"
+
+  # Print rows (4 columns: tool, version, tool, version)
+  while (( ${#tools[@]} )); do
+    printf "${fg[blue]}${V}${reset_color}"
+    for ((c=1; c<=cols && ${#tools[@]}; c++)); do
+      # Print tool name (max 8 chars, left aligned), version (max 9 chars, left aligned)
+      printf "%-8s %-9.9s${fg[blue]}${V}${reset_color}" "${tools[1]}" "${versions[1]}"
+      tools=("${tools[@]:1}")
+      versions=("${versions[@]:1}")
+    done
+    # Fill remaining columns if not enough tools
+    for ((; c<=cols; c++)); do
+      printf "%-8s %-9s${fg[blue]}${V}${reset_color}" "" ""
+    done
+    echo
+  done
+
+  # Bottom border (Unicode-safe)
+  border="${BL}"
+  for ((i=1; i<cols; i++)); do
+    for ((j=0; j<$w; j++)); do border+="$H"; done
+    border+="$BJ"
+  done
+  for ((j=0; j<$w; j++)); do border+="$H"; done
+  border+="$BR"
+  echo "${fg[blue]}$border${reset_color}"
+
   echo
-
-  # Print formatted table
-  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "kubectl" "$(fallback "$v_kubectl")"
-  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "helm" "$(fallback "$v_helm")"
-  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "ytt" "$(fallback "$v_ytt")"
-
-  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "kapp" "$(fallback "$v_kapp")"
-  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "k9s" "$(fallback "$v_k9s")"
-  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "imgpkg" "$(fallback "$v_imgpkg")"
-
-  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "tanzu" "$(fallback "$v_tanzu")"
-  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "velero" "$(fallback "$v_velero")"
-  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "yq" "$(fallback "$v_yq")"
-
-  printf "\033[34m%-12s\033[0m: \033[32m%-16s\033[0m" "vendir" "$(fallback "$v_vendir")"
-  printf "\033[34m%-12s\033[0m: \033[32m%-24s\033[0m" "kbld" "$(fallback "$v_kbld")"
-  printf "\033[34m%-12s\033[0m: \033[32m%s\033[0m\n" "kctrl" "$(fallback "$v_kctrl")"
-
-  echo
-  printf "\033[34mImage Version\033[0m: \033[32m%s\033[0m\n" "$v_image"
-  printf "\033[34mMaintained by\033[0m: \033[32mdwhicker@bifrost.cc\033[0m\n"
+  printf "${fg[blue]}Maintained by${reset_color}: ${fg[green]}dwhicker@bifrost.cc${reset_color}\n"
   echo
 }
 
@@ -251,18 +276,16 @@ function tanzu_init() {
 }
 
 hints() {
-  echo -e "
+  echo "
+${fg[yellow]}You will need to create a Tanzu context to get started.${reset_color}
+${fg[cyan]} tanzu tmc context create <context-name> -e <tmc.server.name> -i pinniped${reset_color}
+${fg[cyan]} tanzu context create <context-name> -e <tmc.server.name> -i pinniped${reset_color}
 
-\033[1;33mYou will need to create a Tanzu context to get started.\033[0m
-\033[1;36m tanzu tmc context create <context-name> -e <tmc.server.name> -i pinniped\033[0m
-\033[1;36m tanzu context create <context-name> -e <tmc.server.name> -i pinniped\033[0m
+${fg[yellow]}Once you have a context created, you can generate kubeconfigs for each TMC cluster with:${reset_color}
+${fg[cyan]} tmc-get-kubeconfigs${reset_color}
 
-\033[1;33mOnce you have a context created, you can generate kubeconfigs for each TMC cluster with:\033[0m
-\033[1;36m tmc-get-kubeconfigs\033[0m
-
-\033[1;33mTo log in to vSphere Supervisor clusters (vKS, TKGS, etc.), you can use:\033[0m
-\033[1;36m kubectl vsphere login --server <vSphere-API-URL> --vsphere-username <username> --insecure-skip-tls-verify\033[0m
-
+${fg[yellow]}To log in to vSphere Supervisor clusters (vKS, TKGS, etc.), you can use:${reset_color}
+${fg[cyan]} kubectl vsphere login --server <vSphere-API-URL> --vsphere-username <username> --insecure-skip-tls-verify${reset_color}
 "
 }
 
