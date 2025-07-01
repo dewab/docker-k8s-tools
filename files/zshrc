@@ -70,9 +70,10 @@ precmd() { vcs_info }
 setopt PROMPT_SUBST
 
 # Final prompt using kube_prompt_info and VCS info
-PROMPT=' %F{blue}[ %F{cyan}cwd: %f%F{yellow}${PWD}%f%F{blue} ]%f $(kube_prompt_info) $(git_prompt_info)
-%F{magenta}☸️%f %% '
-
+# PROMPT=' %F{blue}[ %F{cyan}cwd: %f%F{yellow}${PWD}%f%F{blue} ]%f $(kube_prompt_info) $(git_prompt_info)
+# %F{magenta}☸️%f %% '
+PROMPT='%{$fg[blue]%}[ %{$fg[cyan]%}cwd: %{$fg[yellow]%}${PWD}%{$reset_color%}%{$fg[blue]%} ]%{$reset_color%} $(kube_prompt_info) $(git_prompt_info)
+%{$fg[magenta]%}☸️ %{$reset_color%}%% '
 
 # Git info formatting
 zstyle ':vcs_info:git:*' formats '%F{red} %b%f'
