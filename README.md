@@ -1,8 +1,14 @@
-# 🧰 Kubernetes CLI Toolkit (Multi-Arch)
+# 🧰 Kubernetes CLI Toolkit
 
 [![Build and Push to GHCR](https://github.com/dewab/docker-k8s-tools/actions/workflows/build.yaml/badge.svg)](https://github.com/dewab/docker-k8s-tools/actions/workflows/build.yaml)
 
-This is intended to be an opinionated comprehensive tooling environment for deploying, adminsitering, and maintaining Tanzu (TKGS, Tanzu Mission Control) -based environments.  It designed to ease the tool deployment requirements for adminsitrators, especially those in Windows-based environments.  It provides an interactive shell (ZSH) that has command-line completions enabled for all commands.
+---
+
+## 📝 Description
+
+This container provides an opinionated, comprehensive CLI environment for deploying, administering, and maintaining VMware Tanzu–based environments, including TKGS and Tanzu Mission Control.
+
+It is designed to simplify tool setup for administrators—especially those working on Windows systems—by providing a ready-to-use interactive ZSH shell with command-line completion enabled for all included tools.
 
 ---
 
@@ -35,20 +41,93 @@ docker run --rm -it \
   -v <cavolume>:/ca \
   -v <manifestdir>:/work \
   -v ${HOME}/.kube/config:/kubeconfig \
-  -p 19191:80 \
+  -p 80:80 \
   ghcr.io/dewab/docker-k8s-tools:latest
 ```
 
-Volumes:
+---
 
-- **/k8s**: Persistent home directory for configs, history, and Tanzu plugins.
-- **/ca**: (Optional) Mount a directory with `.crt` or `.pem` files to add custom CAs. These are copied to `/k8s/.ca` and trusted by the system.  This can be a one-time mount to populate your certificate authorities.
-- **/work**: (Optional) Mount your manifests or working directory.  it's intended to be a bind-mount.
-- **/kubeconfig**: (Optional) Mount a pre-existing kubeconfig file to have it copied into the container.  This can be a one-time mount to pre-populate your kubeconfig.
+## 📂 Volume Mounts
 
-You can also map your existing `.kube` directory to `/k8s/.kube/` if you already have kubeconfigs.
+When running the container, you can mount the following volumes to persist configuration or provide input files:
 
-Port 19191 is published and redirected to allow for callback redirects on hosts where port 80 requires root (Linux).  The callback URL is *NOT* rewritten (I'm working on this), so to post the return callback, you'd need to change the URL in the browser from 127.0.0.1 to 127.0.0.1:19191.  If running on Windows, you should be able to use `-p 80:80` instead and use the callback URL as written.
+- 🏠 `/k8s`
+  Persistent home directory for shell history, Tanzu plugins, and other user configs.
+  ✅ **Recommended** for saving your environment between runs.
+
+- 🔒 `/ca` *(optional)*
+  Mount a directory containing custom CA certificates (`.crt` or `.pem` files).
+  These are copied into `/k8s/.ca` and added to the system trust store.
+  💡 Only needed when custom CAs are introduced or updated.
+
+- 📁 `/work` *(optional)*
+  Mount your Kubernetes manifests or working directory.
+  Best used as a bind mount for editing or applying manifests from your local system.
+
+- 📄 `/kubeconfig` *(optional)*
+  Mount a kubeconfig file to copy it into the container.
+  Useful for one-time setup of cluster access from your local environment.
+
+---
+
+### 💡 Tip
+
+If you already have a `.kube` directory with multiple contexts, you can mount it directly to:
+
+```bash
+-v ${HOME}/.kube:/k8s/.kube
+```
+
+---
+
+## 🛡️ Using Pinniped OIDC Authentication with TMC Self-Managed
+
+When using Pinniped OIDC to authenticate with TMC Self-Managed, the login process includes a callback URL that is used by the browser to send the authentication code back to the CLI.
+
+By default, the callback URL is:
+
+`http://127.0.0.1/callback`
+
+This means the CLI expects to be listening on **port 80**.
+
+---
+
+### If You Can Use Port 80
+
+If your environment allows it, publish port 80 directly from your container:
+
+`docker run -p 80:80 your-container`
+
+This allows the default callback URL to work without any changes.
+
+---
+
+### If You Cannot Use Port 80
+
+If you can't bind to port 80 (for example, because you're not running as root), you can redirect a different port to port 80 inside the container:
+
+`docker run -p 8080:80 your-container`
+
+In this case, the default callback URL will still be:
+
+`http://127.0.0.1/callback`
+
+But since the container is actually listening on port 8080, you will need to:
+
+> Manually change the browser URL from
+> `http://127.0.0.1/callback`
+> to
+> `http://127.0.0.1:8080/callback`
+> before pressing enter.
+
+This ensures the browser sends the response to the correct port.
+
+---
+
+### Summary
+
+- Use `-p 80:80` if you can — no changes needed
+- Use `-p <port>:80` if you must — and manually update the callback port in your browser
 
 ---
 
@@ -66,7 +145,3 @@ Port 19191 is published and redirected to allow for callback redirects on hosts 
 - If you mount a `/ca` volume, all `.crt` and `.pem` files are persisted in `/k8s/.ca` and added to the trusted certificate store. This only needs to be done when CAs are updated.
 - For multi-arch builds, use Docker Buildx or the provided build scripts.
 - For best experience, use a persistent `/k8s` volume to retain history, plugins, and configuration between runs.
-
----
-
-Enjoy your streamlined Kubernetes CLI environment!

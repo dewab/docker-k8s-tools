@@ -4,7 +4,7 @@
 ARG TARGET_OS=${TARGET_OS:-linux}
 ARG TARGET_ARCH=${TARGET_ARCH:-amd64}
 
-FROM debian:bullseye-slim AS builder
+FROM debian:bookworm-slim AS builder
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 ARG TARGET_OS
@@ -85,7 +85,7 @@ RUN strip --strip-unneeded /usr/local/bin/*
 # ================================
 # Final Image
 # ================================
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 ARG TARGET_ARCH
 
@@ -135,7 +135,7 @@ WORKDIR /work
 
 RUN chown -R k8suser:k8s /usr/local/share/ca-certificates /etc/ssl/certs
 
-EXPOSE 19191
+EXPOSE 80
 
 USER k8suser
 
