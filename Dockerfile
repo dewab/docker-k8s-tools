@@ -23,6 +23,7 @@ ARG K9S_VERSION
 ARG TANZU_CLI_VERSION
 ARG VELERO_VERSION
 ARG KUBECTL_VERSION
+ARG KUBECTX_VERSION
 
 LABEL org.opencontainers.image.title="k8s-cli-toolkit" \
       org.opencontainers.image.description="Multi-arch container with Kubernetes CLI tools" \
@@ -78,7 +79,12 @@ RUN set -e && \
   curl -fsSL -o velero.tar.gz "https://github.com/vmware-tanzu/velero/releases/download/v${VELERO_VERSION}/velero-v${VELERO_VERSION}-${TARGET_OS}-${TARGET_ARCH}.tar.gz" && \
   tar -xzf velero.tar.gz --strip-components=1 -C /usr/local/bin "velero-v${VELERO_VERSION}-${TARGET_OS}-${TARGET_ARCH}/velero" && chmod +x /usr/local/bin/velero && rm velero.tar.gz && \
   # kubectl
-  curl -fsSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${TARGET_OS}/${TARGET_ARCH}/kubectl" && chmod +x /usr/local/bin/kubectl
+  curl -fsSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${TARGET_OS}/${TARGET_ARCH}/kubectl" && chmod +x /usr/local/bin/kubectl && \
+  # kubectx
+  KUBECTX_ARCH="${TARGET_ARCH}" && \
+  if [ "$KUBECTX_ARCH" = "amd64" ]; then KUBECTX_ARCH="x86_64"; fi && \
+  curl -fsSL -o kubectx.tar.gz "https://github.com/ahmetb/kubectx/releases/download/v${KUBECTX_VERSION}/kubectx_v${KUBECTX_VERSION}_${TARGET_OS}_${KUBECTX_ARCH}.tar.gz" && \
+  tar -xzf kubectx.tar.gz -C /usr/local/bin kubectx && chmod +x /usr/local/bin/kubectx && rm kubectx.tar.gz
 
 RUN strip --strip-unneeded /usr/local/bin/*
 
@@ -86,15 +92,17 @@ RUN strip --strip-unneeded /usr/local/bin/*
 # Final Image
 # ================================
 FROM debian:bookworm-slim
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 ARG TARGET_ARCH
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends zsh git jq vim curl ca-certificates zsh-common && \
+    apt-get install -y --no-install-recommends zsh git jq vim curl ca-certificates zsh-common zsh-autosuggestions exa locales fzf && \
     rm -rf /var/lib/apt/lists/*
 
-# Install additional tools for debugging
-RUN apt-get update && apt-get install -y --no-install-recommends net-tools lsof && rm -rf /var/lib/apt/lists/*
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
 
 # Create user with /k8s as home, ensure home ownership, copy tools from builder
 RUN groupadd -r k8s && useradd -m -d /k8s -s /bin/zsh -g k8s k8suser && \
@@ -128,6 +136,39 @@ RUN cat /tmp/zshrc >> /etc/zsh/zshrc \
          rm -f /tmp/kubectl-vsphere; \
        fi \
     && chown -R k8suser:k8s /k8s
+
+# Create command completions at build time to speed up container startup
+RUN mkdir -p /usr/local/share/zsh/site-functions && \
+    kubectl completion zsh > /usr/local/share/zsh/site-functions/_kubectl && \
+    helm completion zsh > /usr/local/share/zsh/site-functions/_helm && \
+    ytt completion zsh > /usr/local/share/zsh/site-functions/_ytt 2>/dev/null || true && \
+    imgpkg completion zsh | grep -v ^Succeeded > /usr/local/share/zsh/site-functions/_imgpkg 2>/dev/null || true && \
+    kapp completion zsh | grep -v ^Succeeded > /usr/local/share/zsh/site-functions/_kapp 2>/dev/null || true && \
+    kctrl completion zsh | grep -v ^Succeeded > /usr/local/share/zsh/site-functions/_kctrl 2>/dev/null || true && \
+    vendir completion zsh | grep -v ^Succeeded > /usr/local/share/zsh/site-functions/_vendir 2>/dev/null || true && \
+    k9s completion zsh > /usr/local/share/zsh/site-functions/_k9s 2>/dev/null || true && \
+    tanzu completion zsh > /usr/local/share/zsh/site-functions/_tanzu 2>/dev/null || true && \
+    velero completion zsh > /usr/local/share/zsh/site-functions/_velero 2>/dev/null || true && \
+    yq completion zsh > /usr/local/share/zsh/site-functions/_yq 2>/dev/null || true && \
+    kubectl-vsphere completion zsh > /usr/local/share/zsh/site-functions/_kubectl-vsphere 2>/dev/null || true
+
+# Collect tool versions to display in the banner
+RUN jq -n \
+  --arg kubectl "$(kubectl version --client -o json | jq -r '.clientVersion.gitVersion')" \
+  --arg helm "$(helm version --short)" \
+  --arg ytt "$(ytt version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg kapp "$(kapp version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg kctrl "$(kctrl version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg kbld "$(kbld version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg imgpkg "$(imgpkg version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg vendir "$(vendir version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg k9s "$(k9s version -s 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg tanzu "$(tanzu version | grep ^version | grep -Eo '[0-9.]+' | head -n1)" \
+  --arg velero "$(velero version 2>/dev/null | grep -Eo 'v[0-9.]+' | head -n1)" \
+  --arg yq "$(yq --version 2>/dev/null | grep -Eo '[0-9.]+$')" \
+  --arg kubectx "$(kubectx -V 2>/dev/null | awk '{print $2}')" \
+  '{kubectl: $kubectl, helm: $helm, ytt: $ytt, kapp: $kapp, kctrl: $kctrl, kbld: $kbld, imgpkg: $imgpkg, vendir: $vendir, k9s: $k9s, tanzu: $tanzu, velero: $velero, yq: $yq, kubectx: $kubectx}' \
+  > /versions.json
 
 ENV PATH="/usr/local/bin:$PATH"
 ENV HOME=/k8s

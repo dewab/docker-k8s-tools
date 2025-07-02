@@ -1,9 +1,16 @@
 # ~/.zshrc for Kubernetes CLI Toolkit
 
 # Enable completion system
+fpath=(/usr/local/share/zsh/site-functions $fpath)
 autoload -Uz compinit promptinit
 compinit
 promptinit
+if [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
+  # Source zsh-autosuggestions if available
+  source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+else
+  echo "⚠️ zsh-autosuggestions not found, skipping."
+fi
 
 # Set up colors
 autoload -U colors && colors
@@ -40,14 +47,14 @@ function git_prompt_info() {
   [[ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]] && untracked="✖"
 
   # Compose info string with colors
-  info="%F{blue}[ %F{cyan}repo: %f%F{yellow}${repo}%f"
-  info+=" %F{cyan}branch: %f%F{yellow}${branch}%f"
-  [[ "$ahead" -gt 0 ]] && info+=" %F{green}⬆$ahead%f"
-  [[ "$behind" -gt 0 ]] && info+=" %F{red}⬇$behind%f"
-  [[ -n "$dirty" ]] && info+=" %F{red}$dirty%f"
-  [[ -n "$staged" ]] && info+=" %F{magenta}$staged%f"
-  [[ -n "$untracked" ]] && info+=" %F{yellow}$untracked%f"
-  info+="%F{blue} ]%f"
+  info="%{$fg[blue]%}[ %{$fg[cyan]%}repo: %{$fg[yellow]%}${repo}%{$reset_color%}"
+  info+=" %{$fg[cyab]%}branch: %{$fg[yellow]%}${branch}%{$reset_color%}"
+  [[ "$ahead" -gt 0 ]] && info+=" %{$fg[green]%}⬆$ahead%{$reset_color%}"
+  [[ "$behind" -gt 0 ]] && info+=" %{$fg[red]%}⬇$behind%{$reset_color%}"
+  [[ -n "$dirty" ]] && info+=" %{$fg[red]%}$dirty%{$reset_color%}"
+  [[ -n "$staged" ]] && info+=" %{$fg[magenta]%}$staged%{$reset_color%}"
+  [[ -n "$untracked" ]] && info+=" %{$fg[yellow]%}$untracked%{$reset_color%}"
+  info+="%{$fg[blue]%} ]%{$reset_color%}"
 
   echo "$info"
 }
@@ -61,7 +68,7 @@ function kube_prompt_info() {
   if [[ "$tanzu_ctx" == "There is no active context" || -z "$tanzu_ctx" ]]; then
     tanzu_ctx="none"
   fi
-  [[ -n "$ctx" ]] && echo "%F{blue}[ %F{cyan}cluster: %f%F{yellow}${ctx}%f%F{blue} / %F{cyan}namespace :%f%F{yellow}${ns:-default}%f%F{blue} / %F{cyan}tanzu: %f%F{yellow}${tanzu_ctx}%f%F{blue} ]%f"
+  [[ -n "$ctx" ]] && echo "%{$fg[blue]%}[ %{$fg[cyan]%}cluster: %{$fg[yellow]%}${ctx}%{$fg[blue]%} / %{$fg[cyan]%}namespace: %{$fg[yellow]%}${ns:-default} %{$fg[blue]%}/ %{$fg[cyan]%}tanzu: %{$fg[yellow]%}${tanzu_ctx}%{$fg[blue]%} ]%{$reset_color%}"
 }
 
 autoload -Uz vcs_info
@@ -70,50 +77,13 @@ precmd() { vcs_info }
 setopt PROMPT_SUBST
 
 # Final prompt using kube_prompt_info and VCS info
-# PROMPT=' %F{blue}[ %F{cyan}cwd: %f%F{yellow}${PWD}%f%F{blue} ]%f $(kube_prompt_info) $(git_prompt_info)
-# %F{magenta}☸️%f %% '
+# PROMPT='%{$fg[blue]%}[ %{$fg[cyan]%}cwd: %{$fg[yellow]%}${PWD}%{$reset_color%}%{$fg[blue]%} ]%{$reset_color%} $(kube_prompt_info) $(git_prompt_info)
+# %{$fg[blue]%}⎈ %{$reset_color%}%% '
 PROMPT='%{$fg[blue]%}[ %{$fg[cyan]%}cwd: %{$fg[yellow]%}${PWD}%{$reset_color%}%{$fg[blue]%} ]%{$reset_color%} $(kube_prompt_info) $(git_prompt_info)
-%{$fg[magenta]%}☸️ %{$reset_color%}%% '
+%F{blue}⎈%f %% '
 
 # Git info formatting
-zstyle ':vcs_info:git:*' formats '%F{red} %b%f'
-
-# Completion sources
-# NOTE: These will be silently skipped if the tool is missing or doesn't support zsh completion
-function try_source_completion() {
-  if command -v "$1" >/dev/null 2>&1; then
-    case "$1" in
-      kubectl)
-        source <($1 completion zsh)
-        ;;
-      helm)
-        source <($1 completion zsh)
-        ;;
-      k9s)
-        [[ -f /usr/share/zsh/site-functions/_k9s ]] && source /usr/share/zsh/site-functions/_k9s
-        ;;
-      tanzu)
-        source <($1 completion zsh)
-        ;;
-      velero)
-        source <($1 completion zsh)
-        ;;
-      vendir)
-        $1 completion zsh | grep -v '^Succeeded' >/tmp/_${1}_completion.zsh 2>/dev/null && source /tmp/_${1}_completion.zsh
-        ;;
-      yq)
-        source <($1 completion zsh)
-        ;;
-      ytt|kapp|kbld|imgpkg|kctrl)
-        $1 completion zsh >/tmp/_${1}_completion.zsh 2>/dev/null && source /tmp/_${1}_completion.zsh
-        ;;
-    esac
-  fi
-}
-
-for tool in kubectl helm k9s tanzu velero ytt kapp kbld imgpkg vendir kctrl; do
-  try_source_completion "$tool"
-done
+zstyle ':vcs_info:git:*' formats '%{$fg[red]%} %b%{$reset_color%}'
 
 # Set PATH and environment variables (if needed)
 export PATH="/k8s/bin:$PATH"
@@ -122,6 +92,10 @@ export PATH="/k8s/bin:$PATH"
 alias k=kubectl
 alias h=helm
 alias t=tanzu
+alias l.='exa --list-dirs .* --icons --color-scale'
+alias la='exa --classify --icons --color-scale --all'
+alias ll='exa --classify --long --icons --color-scale --all'
+alias ls='exa --icons --color-scale'
 
 # History
 export HISTFILE=${HOME}/.zsh_history
@@ -132,101 +106,77 @@ setopt HIST_IGNORE_DUPS         # Don't record duplicate commands
 setopt HIST_REDUCE_BLANKS       # Remove superfluous blanks before recording entry
 setopt SHARE_HISTORY            # Share command history across terminals
 
-versions() {
-  # Banner
+banner() {
   echo
-  cat /banner.txt
+  cat /banner.txt 2>/dev/null
   echo
-
   echo "${fg[blue]}Welcome to the Kubernetes CLI Toolkit!${reset_color}"
   echo "${fg[blue]}Tools like kubectl, helm, ytt, kapp, k9s and more are ready to go.${reset_color}"
   echo
 
-  # Version variables
-  v_kubectl=$(kubectl version --client -o json 2>/dev/null | jq -r '.clientVersion.gitVersion')
-  v_helm=$(helm version --short 2>/dev/null)
-  v_ytt=$(ytt version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
-  v_kapp=$(kapp version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
-  v_k9s=$(k9s version -s 2>&1 | grep -Eo '[0-9.]+' | head -n1)
-  v_imgpkg=$(imgpkg version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
-  v_tanzu=$(tanzu version | grep ^version | grep -Eo '[0-9.]+' | head -n1)
-  v_velero=$(velero version 2>/dev/null | grep -Eo 'v[0-9.]+' | head -n1)
-  v_yq=$(yq --version 2>/dev/null | grep -Eo '[0-9.]+$')
-  v_vendir=$(vendir version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
-  v_kbld=$(kbld version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
-  v_kctrl=$(kctrl version 2>/dev/null | grep -Eo '[0-9.]+' | head -n1)
-  v_image="${IMAGE_VERSION:-unknown}"
+  if [[ ! -f /versions.json ]]; then
+    echo "${fg[red]}WARNING:${reset_color} /versions.json not found. Unable to display tool versions."
+    return 1
+  fi
 
-  # Fallback to "?" if version is empty
-  fallback() { [[ -z "$1" || "$1" == "null" ]] && echo "?" || echo "$1"; }
+  local width=78
+  printf "${fg[green]}%-12s %-12s${reset_color}  ${fg[green]}%-12s %-12s${reset_color}  ${fg[green]}%-12s %-12s${reset_color}\n" \
+    "Tool" "Version" "Tool" "Version" "Tool" "Version"
+  printf "${fg[blue]}%${width}s${reset_color}\n" | tr ' ' '-'
 
-  # Tool/version arrays
-  local tools=(kubectl helm ytt kapp k9s imgpkg tanzu velero yq vendir kbld kctrl)
-  local versions=(
-    "$(fallback "$v_kubectl")" "$(fallback "$v_helm")" "$(fallback "$v_ytt")" "$(fallback "$v_kapp")"
-    "$(fallback "$v_k9s")" "$(fallback "$v_imgpkg")" "$(fallback "$v_tanzu")" "$(fallback "$v_velero")"
-    "$(fallback "$v_yq")" "$(fallback "$v_vendir")" "$(fallback "$v_kbld")" "$(fallback "$v_kctrl")"
-  )
+  local -a tool_pairs sorted normal empty
+  while IFS="=" read -r key val; do
+    val="${val%%+*}"                      # Strip +commit
+    [[ -z "$val" || "$val" == "null" ]] && val="?"
+    tool_pairs+=("$key=$val")
+  done < <(jq -r 'to_entries[] | "\(.key)=\(.value // "")"' /versions.json)
 
-  # Table border characters (Unicode, but built safely)
-  local H="─" V="│" TL="┌" TR="┐" BL="└" BR="┘" TJ="┬" BJ="┴" CJ="┼"
-  local w=18 cols=4
+  # Sort alphabetically by tool name
+  IFS=$'\n' sorted=($(printf "%s\n" "${tool_pairs[@]}" | sort))
+  unset IFS
 
-  # Build top border (Unicode-safe, no tr/printf hacks)
-  local border="${TL}"
-  for ((i=1; i<cols; i++)); do
-    for ((j=0; j<$w; j++)); do border+="$H"; done
-    border+="$TJ"
+  for entry in "${sorted[@]}"; do
+    [[ -z "${entry%%=*}" ]] && empty+=("$entry") || normal+=("$entry")
   done
-  for ((j=0; j<$w; j++)); do border+="$H"; done
-  border+="$TR"
-  echo "${fg[blue]}$border${reset_color}"
 
-  # Print rows (4 columns: tool, version, tool, version)
-  while (( ${#tools[@]} )); do
-    printf "${fg[blue]}${V}${reset_color}"
-    for ((c=1; c<=cols && ${#tools[@]}; c++)); do
-      # Print tool name (max 8 chars, left aligned), version (max 9 chars, left aligned)
-      printf "%-8s %-9.9s${fg[blue]}${V}${reset_color}" "${tools[1]}" "${versions[1]}"
-      tools=("${tools[@]:1}")
-      versions=("${versions[@]:1}")
-    done
-    # Fill remaining columns if not enough tools
-    for ((; c<=cols; c++)); do
-      printf "%-8s %-9s${fg[blue]}${V}${reset_color}" "" ""
+  tool_pairs=("${normal[@]}" "${empty[@]}")
+
+  # Pad to multiple of 3
+  while (( ${#tool_pairs[@]} % 3 != 0 )); do
+    tool_pairs+=("=")
+  done
+
+  # Print in 3 columns
+  local i=0
+  while (( i < ${#tool_pairs[@]} )); do
+    for c in {0..2}; do
+      local pair="${tool_pairs[i+c]}"
+      local tool="${pair%%=*}"
+      local version="${pair#*=}"
+      printf "${fg[yellow]}%-12s${reset_color} %-12s" "$tool" "$version"
+      [[ $c -lt 2 ]] && printf "  "
     done
     echo
+    (( i += 3 ))
   done
-
-  # Bottom border (Unicode-safe)
-  border="${BL}"
-  for ((i=1; i<cols; i++)); do
-    for ((j=0; j<$w; j++)); do border+="$H"; done
-    border+="$BJ"
-  done
-  for ((j=0; j<$w; j++)); do border+="$H"; done
-  border+="$BR"
-  echo "${fg[blue]}$border${reset_color}"
 
   echo
-  printf "${fg[blue]}Maintained by${reset_color}: ${fg[green]}dwhicker@bifrost.cc${reset_color}\n"
+  echo "${fg[blue]}Maintained by:${reset_color} ${fg[green]}dwhicker@bifrost.cc${reset_color}"
   echo
 }
 
 # Function: tanzu_needs_init
 # Returns 0 if Tanzu needs initialization, 1 otherwise
 function tanzu_needs_init() {
-  local tanzu_dir="$HOME/.config/tanzu"
-  local config_yaml="$tanzu_dir/config.yaml"
-  if [ ! -d "$tanzu_dir" ] || [ -z "$(ls -A "$tanzu_dir" 2>/dev/null)" ]; then
+  local config_yaml="$HOME/.config/tanzu/config.yaml"
+  # If config file doesn't exist or is empty
+  if [[ ! -s "$config_yaml" ]]; then
     return 0
-  elif [ -f "$config_yaml" ]; then
-    # Check if config.yaml contains only '{}', possibly with whitespace
-    local content
-    content=$(tr -d '\n\r\t ' < "$config_yaml")
-    if [ "$content" = "{}" ]; then
-      return 0
-    fi
+  fi
+  # If config contains only an empty object
+  local json=$(jq -c . "$config_yaml" 2>/dev/null)
+  if [[ "$json" == "{}" ]]; then
+    return 0
   fi
   return 1
 }
@@ -290,7 +240,7 @@ ${fg[cyan]} kubectl vsphere login --server <vSphere-API-URL> --vsphere-username 
 "
 }
 
-versions
+banner
 echo
 if tanzu_needs_init; then
   tanzu_init
