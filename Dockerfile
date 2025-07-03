@@ -49,6 +49,7 @@ ADD https://github.com/danielfoehrKn/kubeswitch/releases/download/${KUBESWITCH_V
 
 RUN curl -fSL -o /tmp/k9s.tar.gz "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_${TARGET_OS^}_${TARGET_ARCH}.tar.gz"
 RUN curl -fsSL -o /tmp/kubectx.tar.gz "https://github.com/ahmetb/kubectx/releases/download/v${KUBECTX_VERSION}/kubectx_v${KUBECTX_VERSION}_${TARGET_OS}_${TARGET_ARCH/amd64/x86_64}.tar.gz"
+RUN curl -fsSL -o /tmp/kubens.tar.gz "https://github.com/ahmetb/kubectx/releases/download/v${KUBECTX_VERSION}/kubens_v${KUBECTX_VERSION}_${TARGET_OS}_${TARGET_ARCH/amd64/x86_64}.tar.gz"
 RUN TANZU_FILENAME="tanzu-cli-${TARGET_OS}-${TARGET_ARCH}.tar.gz" && \
     if [ "${TARGET_OS}" = "linux" ] && [ "${TARGET_ARCH}" = "arm64" ]; then \
       TANZU_FILENAME="tanzu-cli-${TARGET_OS}-${TARGET_ARCH}-unstable.tar.gz"; fi && \
@@ -69,6 +70,7 @@ RUN install -m 755 /tmp/yq /usr/local/bin/yq && \
     tar -xzf /tmp/k9s.tar.gz && install -m 755 k9s /usr/local/bin/k9s && \
     tar -xzf /tmp/velero.tar.gz --strip-components=1 -C /usr/local/bin "velero-v${VELERO_VERSION}-${TARGET_OS}-${TARGET_ARCH}/velero" && \
     tar -xzf /tmp/kubectx.tar.gz -C /usr/local/bin kubectx && chmod +x /usr/local/bin/kubectx && \
+    tar -xzf /tmp/kubens.tar.gz -C /usr/local/bin kubens && chmod +x /usr/local/bin/kubens && \
     mkdir tanzu-extract && \
     tar -xzf /tmp/tanzu-cli.tar.gz -C tanzu-extract && \
     mv tanzu-extract/v${TANZU_CLI_VERSION}/tanzu-cli-* /usr/local/bin/tanzu && chmod +x /usr/local/bin/tanzu && \
