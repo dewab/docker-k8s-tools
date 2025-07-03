@@ -62,3 +62,5 @@ jobs:
             VELERO_VERSION=${{ env.VELERO_VERSION }}
             KUBECTL_VERSION=${{ env.KUBECTL_VERSION }}
             IMAGE_VERSION=${{ env.IMAGE_VERSION }}
+            KUBESWITCH_VERSION=${{ env.KUBESWITCH_VERSION }}
+            KUBECTX_VERSION=${{ env.KUBECTX_VERSION }}
