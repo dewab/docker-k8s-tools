@@ -97,7 +97,7 @@ SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 ARG TARGET_ARCH
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends zsh git jq vim curl ca-certificates zsh-common zsh-autosuggestions exa locales fzf && \
+    apt-get install -y --no-install-recommends zsh git jq vim curl ca-certificates zsh-common zsh-autosuggestions exa locales fzf zsh-syntax-highlighting && \
     rm -rf /var/lib/apt/lists/*
 
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \

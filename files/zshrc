@@ -13,6 +13,13 @@ else
   echo "⚠️ zsh-autosuggestions not found, skipping."
 fi
 
+# ----- Syntax Highlighting -----
+if [ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+  source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+else
+  echo "⚠️ zsh-syntax-highlighting not found, skipping."
+fi
+
 # ----- Enable Powerlevel10k -----
 # Custom Powerlevel10k segment to show Tanzu context
 function prompt_tanzu() {
@@ -34,7 +41,6 @@ else
   echo "⚠️ Powerlevel10k theme not found, skipping."
 fi
 
-
 # ----- Color Setup -----
 autoload -U colors && colors
 
@@ -49,6 +55,8 @@ setopt INC_APPEND_HISTORY HIST_IGNORE_DUPS HIST_REDUCE_BLANKS SHARE_HISTORY
 
 # ----- Aliases -----
 alias k=kubectl
+alias ku='kubectl config use-context'
+alias kctx=kubectx
 alias h=helm
 alias t=tanzu
 alias l.='exa --list-dirs .* --icons --color-scale'
@@ -101,10 +109,14 @@ hints() {
   echo "${fg[cyan]} tanzu context create <context-name> -e <server> -i pinniped${reset_color}"
   echo
   echo "${fg[yellow]}Login to vSphere Supervisor clusters with:${reset_color}"
-  echo "${fg[cyan]} kubectl vsphere login --server <url> --vsphere-username <user> --insecure-skip-tls-verify${reset_color}\n"
+  echo "${fg[cyan]} kubectl vsphere login --server <url> --vsphere-username <user> --insecure-skip-tls-verify${reset_color}"
   echo
   echo "${fg[yellow]}To quickly and interactively change your kubernetes context:${reset_color}"
   echo "${fg[cyan]} kubectx ${reset_color}"
+  echo
+  echo "${fg[yellow]}To add all TMC-managed workload clusters to your kubeconfig:${reset_color}"
+  echo "${fg[cyan]} tmc-get-kubeconfigs ${reset_color}"
+  echo
 
 }
 
