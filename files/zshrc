@@ -117,17 +117,22 @@ banner() {
 
 hints() {
   echo "\n${fg[yellow]}Need help with Tanzu contexts?${reset_color}"
-  echo "${fg[cyan]} tanzu tmc context create <context-name> -e <server> -i pinniped${reset_color}"
-  echo "${fg[cyan]} tanzu context create <context-name> -e <server> -i pinniped${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} tanzu tmc context create <context-name> -e <server> -i pinniped${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} tanzu context create <context-name> -e <server> -i pinniped${reset_color}"
   echo
   echo "${fg[yellow]}Login to vSphere Supervisor clusters with:${reset_color}"
-  echo "${fg[cyan]} kubectl vsphere login --server <url> --vsphere-username <user> --insecure-skip-tls-verify${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} kubectl vsphere login --server <url> --vsphere-username <user> --insecure-skip-tls-verify${reset_color}"
   echo
-  echo "${fg[yellow]}To quickly and interactively change your kubernetes context:${reset_color}"
-  echo "${fg[cyan]} kubectx ${reset_color}"
+  echo "${fg[yellow]}To quickly and interactively change your kubernetes context or namespace:${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} kubectx ${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} kubeens ${reset_color}"
+  echo
+  echo "${fg[yellow]}Alternatively, you can interactively switch kubernetes context or namespace using:${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} switch ${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} switch ns ${reset_color}"
   echo
   echo "${fg[yellow]}To add all TMC-managed workload clusters to your kubeconfig:${reset_color}"
-  echo "${fg[cyan]} tmc-get-kubeconfigs ${reset_color}"
+  echo "${fg[white]}>${fg[cyan]} tmc-get-kubeconfigs ${reset_color}"
   echo
 }
 
