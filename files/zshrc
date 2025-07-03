@@ -146,7 +146,7 @@ banner() {
   echo "${fg[blue]}Welcome to the Kubernetes CLI Toolkit!${reset_color}"
   echo "${fg[blue]}Tools like kubectl, helm, ytt, kapp, k9s and more are ready to go.${reset_color}"
   echo
-  echo "${fg[blue]}The ${fg[yellow]}'H'${fg[blue]} in ${fg[yellow]}Kubernetes${fg[blue]} is short for ${fg[yellow]}'Happiness'${fg[blue]}.${reset_color}"
+  echo " ${fg[white]} ** ${fg[blue]}The ${fg[yellow]}'H'${fg[blue]} in ${fg[yellow]}Kubernetes${fg[blue]} is short for ${fg[yellow]}'Happiness'${fg[white]} ** ${reset_color}"
   echo
 }
 
