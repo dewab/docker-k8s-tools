@@ -108,6 +108,10 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
 RUN groupadd -r k8s && useradd -m -d /k8s -s /bin/zsh -g k8s k8suser && \
     chown -R k8suser:k8s /k8s
 
+# Download and install Powerlevel10k
+RUN git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /usr/local/share/powerlevel10k && \
+    rm -rf /usr/local/share/powerlevel10k/.git
+
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy all supporting files in one layer
@@ -117,6 +121,7 @@ COPY files/zshrc \
     files/kubectl-vsphere \
     files/tkgs-login \
     files/tmc-get-kubeconfigs \
+    files/p10k.zsh \
     /tmp/
 
 # Append zshrc to system-wide /etc/zsh/zshrc, move other files, and handle kubectl-vsphere
@@ -126,6 +131,7 @@ RUN cat /tmp/zshrc >> /etc/zsh/zshrc \
     && mv /tmp/tkgs-login /usr/local/bin/tkgs-login \
     && chmod +x /usr/local/bin/tkgs-login \
     && mv /tmp/tmc-get-kubeconfigs /usr/local/bin/tmc-get-kubeconfigs \
+    && mv /tmp/p10k.zsh /usr/local/share/powerlevel10k/p10k.zsh \
     && chmod +x /usr/local/bin/tmc-get-kubeconfigs \
     && chmod +x /entrypoint.sh \
     && mkdir -p /work && chown k8suser:k8s /work \

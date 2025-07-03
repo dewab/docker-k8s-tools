@@ -1,94 +1,53 @@
 # ~/.zshrc for Kubernetes CLI Toolkit
 
-# Enable completion system
+# ----- Enable Completion -----
 fpath=(/usr/local/share/zsh/site-functions $fpath)
 autoload -Uz compinit promptinit
-compinit
+compinit -C
 promptinit
+
+# ----- Autosuggestions -----
 if [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
-  # Source zsh-autosuggestions if available
   source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 else
   echo "⚠️ zsh-autosuggestions not found, skipping."
 fi
 
-# Set up colors
+# ----- Enable Powerlevel10k -----
+# Custom Powerlevel10k segment to show Tanzu context
+function prompt_tanzu() {
+  local context=$(tanzu context current --short 2>/dev/null | head -n1)
+  [[ -z "$context" || "$context" == "There is no active context" ]] && return
+  p10k segment -b red -f white -i ⚙ -t "$context"
+}
+
+if [ -d /usr/local/share/powerlevel10k ]; then
+  POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
+  source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
+  # ----- Run Powerlevel10k Theme -----
+  if [ -f /usr/local/share/powerlevel10k/p10k.zsh ]; then
+    source /usr/local/share/powerlevel10k/p10k.zsh
+  else
+    echo "⚠️ Powerlevel10k theme not found, skipping."
+  fi
+else
+  echo "⚠️ Powerlevel10k theme not found, skipping."
+fi
+
+
+# ----- Color Setup -----
 autoload -U colors && colors
 
-# Prompt with kube context + git branch if any
-# Load vcs_info for Git status
-autoload -Uz vcs_info
-precmd() { vcs_info }
-
-# Git info styling
-zstyle ':vcs_info:git:*' enable git
-zstyle ':vcs_info:git:*' formats '%b'
-zstyle ':vcs_info:*' check-for-changes true
-
-# Git summary function
-function git_prompt_info() {
-  git rev-parse --is-inside-work-tree &>/dev/null || return
-
-  local repo branch ahead behind dirty untracked staged info=""
-
-  # Repo path from remote URL, strip protocol/host and .git
-  repo=$(git remote get-url origin 2>/dev/null | sed -E 's#(https?://|git@)[^/:]+[:/]##; s/\\.git$//')
-  # Branch name
-  branch=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null)
-
-  # ahead/behind
-  local raw=$(git rev-list --left-right --count @{upstream}...HEAD 2>/dev/null)
-  ahead=$(echo $raw | awk '{print $2}')
-  behind=$(echo $raw | awk '{print $1}')
-
-  # Status symbols
-  git diff --quiet --ignore-submodules HEAD &>/dev/null || dirty="✱"
-  git diff --cached --quiet --ignore-submodules HEAD &>/dev/null || staged="✚"
-  [[ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]] && untracked="✖"
-
-  # Compose info string with colors
-  info="%{$fg[blue]%}[ %{$fg[cyan]%}repo: %{$fg[yellow]%}${repo}%{$reset_color%}"
-  info+=" %{$fg[cyab]%}branch: %{$fg[yellow]%}${branch}%{$reset_color%}"
-  [[ "$ahead" -gt 0 ]] && info+=" %{$fg[green]%}⬆$ahead%{$reset_color%}"
-  [[ "$behind" -gt 0 ]] && info+=" %{$fg[red]%}⬇$behind%{$reset_color%}"
-  [[ -n "$dirty" ]] && info+=" %{$fg[red]%}$dirty%{$reset_color%}"
-  [[ -n "$staged" ]] && info+=" %{$fg[magenta]%}$staged%{$reset_color%}"
-  [[ -n "$untracked" ]] && info+=" %{$fg[yellow]%}$untracked%{$reset_color%}"
-  info+="%{$fg[blue]%} ]%{$reset_color%}"
-
-  echo "$info"
-}
-
-# Kubernetes context, namespace, and tanzu context
-function kube_prompt_info() {
-  local ctx ns tanzu_ctx
-  ctx=$(kubectl config current-context 2>/dev/null)
-  ns=$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)
-  tanzu_ctx=$(tanzu context current --short 2>/dev/null | head -n1)
-  if [[ "$tanzu_ctx" == "There is no active context" || -z "$tanzu_ctx" ]]; then
-    tanzu_ctx="none"
-  fi
-  [[ -n "$ctx" ]] && echo "%{$fg[blue]%}[ %{$fg[cyan]%}cluster: %{$fg[yellow]%}${ctx}%{$fg[blue]%} / %{$fg[cyan]%}namespace: %{$fg[yellow]%}${ns:-default} %{$fg[blue]%}/ %{$fg[cyan]%}tanzu: %{$fg[yellow]%}${tanzu_ctx}%{$fg[blue]%} ]%{$reset_color%}"
-}
-
-autoload -Uz vcs_info
-precmd() { vcs_info }
-
-setopt PROMPT_SUBST
-
-# Final prompt using kube_prompt_info and VCS info
-# PROMPT='%{$fg[blue]%}[ %{$fg[cyan]%}cwd: %{$fg[yellow]%}${PWD}%{$reset_color%}%{$fg[blue]%} ]%{$reset_color%} $(kube_prompt_info) $(git_prompt_info)
-# %{$fg[blue]%}⎈ %{$reset_color%}%% '
-PROMPT='%{$fg[blue]%}[ %{$fg[cyan]%}cwd: %{$fg[yellow]%}${PWD}%{$reset_color%}%{$fg[blue]%} ]%{$reset_color%} $(kube_prompt_info) $(git_prompt_info)
-%F{blue}⎈%f %% '
-
-# Git info formatting
-zstyle ':vcs_info:git:*' formats '%{$fg[red]%} %b%{$reset_color%}'
-
-# Set PATH and environment variables (if needed)
+# ----- Path -----
 export PATH="/k8s/bin:$PATH"
 
-# Aliases
+# ----- History -----
+export HISTFILE=${HOME}/.zsh_history
+export HISTSIZE=10000
+export SAVEHIST=10000
+setopt INC_APPEND_HISTORY HIST_IGNORE_DUPS HIST_REDUCE_BLANKS SHARE_HISTORY
+
+# ----- Aliases -----
 alias k=kubectl
 alias h=helm
 alias t=tanzu
@@ -97,15 +56,34 @@ alias la='exa --classify --icons --color-scale --all'
 alias ll='exa --classify --long --icons --color-scale --all'
 alias ls='exa --icons --color-scale'
 
-# History
-export HISTFILE=${HOME}/.zsh_history
-export HISTSIZE=10000
-export SAVEHIST=10000
-setopt INC_APPEND_HISTORY       # Append commands to the history file as they are typed
-setopt HIST_IGNORE_DUPS         # Don't record duplicate commands
-setopt HIST_REDUCE_BLANKS       # Remove superfluous blanks before recording entry
-setopt SHARE_HISTORY            # Share command history across terminals
+# ----- Tanzu Init Check -----
+tanzu_needs_init() {
+  local config_yaml="$HOME/.config/tanzu/config.yaml"
+  [[ ! -s "$config_yaml" ]] && return 0
+  local json=$(jq -c . "$config_yaml" 2>/dev/null)
+  [[ "$json" == "{}" ]] && return 0
+  return 1
+}
 
+# ----- Tanzu Initialization -----
+tanzu_init() {
+  export TANZU_CLI_CEIP_OPT_IN_PROMPT_ANSWER=No
+  echo "🔧 Initializing Tanzu plugins..."
+  tanzu config eula accept
+  local plugin_groups=(
+    "vmware-tanzucli/essentials"
+    "vmware-tmc/default"
+    "vmware-tkg/default"
+    "vmware-vsphere/default"
+  )
+  for group in "${plugin_groups[@]}"; do
+    echo "📦 Installing plugin group: $group"
+    tanzu plugin install all --group "$group" > /dev/null 2>&1
+  done
+  echo "🎉 Tanzu plugins initialized successfully."
+}
+
+# ----- Banner and Hints -----
 banner() {
   echo
   cat /banner.txt 2>/dev/null
@@ -113,140 +91,29 @@ banner() {
   echo "${fg[blue]}Welcome to the Kubernetes CLI Toolkit!${reset_color}"
   echo "${fg[blue]}Tools like kubectl, helm, ytt, kapp, k9s and more are ready to go.${reset_color}"
   echo
-
-  if [[ ! -f /versions.json ]]; then
-    echo "${fg[red]}WARNING:${reset_color} /versions.json not found. Unable to display tool versions."
-    return 1
-  fi
-
-  local width=78
-  printf "${fg[green]}%-12s %-12s${reset_color}  ${fg[green]}%-12s %-12s${reset_color}  ${fg[green]}%-12s %-12s${reset_color}\n" \
-    "Tool" "Version" "Tool" "Version" "Tool" "Version"
-  printf "${fg[blue]}%${width}s${reset_color}\n" | tr ' ' '-'
-
-  local -a tool_pairs sorted normal empty
-  while IFS="=" read -r key val; do
-    val="${val%%+*}"                      # Strip +commit
-    [[ -z "$val" || "$val" == "null" ]] && val="?"
-    tool_pairs+=("$key=$val")
-  done < <(jq -r 'to_entries[] | "\(.key)=\(.value // "")"' /versions.json)
-
-  # Sort alphabetically by tool name
-  IFS=$'\n' sorted=($(printf "%s\n" "${tool_pairs[@]}" | sort))
-  unset IFS
-
-  for entry in "${sorted[@]}"; do
-    [[ -z "${entry%%=*}" ]] && empty+=("$entry") || normal+=("$entry")
-  done
-
-  tool_pairs=("${normal[@]}" "${empty[@]}")
-
-  # Pad to multiple of 3
-  while (( ${#tool_pairs[@]} % 3 != 0 )); do
-    tool_pairs+=("=")
-  done
-
-  # Print in 3 columns
-  local i=0
-  while (( i < ${#tool_pairs[@]} )); do
-    for c in {0..2}; do
-      local pair="${tool_pairs[i+c]}"
-      local tool="${pair%%=*}"
-      local version="${pair#*=}"
-      printf "${fg[yellow]}%-12s${reset_color} %-12s" "$tool" "$version"
-      [[ $c -lt 2 ]] && printf "  "
-    done
-    echo
-    (( i += 3 ))
-  done
-
+  echo "${fg[blue]}The ${fg[yellow]}'H'${fg[blue]} in ${fg[yellow]}Kubernetes${fg[blue]} is short for ${fg[yellow]}'Happiness'${fg[blue]}.${reset_color}"
   echo
-  echo "${fg[blue]}Maintained by:${reset_color} ${fg[green]}dwhicker@bifrost.cc${reset_color}"
-  echo
-}
-
-# Function: tanzu_needs_init
-# Returns 0 if Tanzu needs initialization, 1 otherwise
-function tanzu_needs_init() {
-  local config_yaml="$HOME/.config/tanzu/config.yaml"
-  # If config file doesn't exist or is empty
-  if [[ ! -s "$config_yaml" ]]; then
-    return 0
-  fi
-  # If config contains only an empty object
-  local json=$(jq -c . "$config_yaml" 2>/dev/null)
-  if [[ "$json" == "{}" ]]; then
-    return 0
-  fi
-  return 1
-}
-
-function tanzu_init() {
-  export TANZU_CLI_CEIP_OPT_IN_PROMPT_ANSWER=No
-  echo "🔧 Initializing Tanzu plugins..."
-
-  tanzu config eula accept
-
-  local plugin_groups=(
-    "vmware-tanzucli/essentials"
-    "vmware-tmc/default"
-    "vmware-tkg/default"
-    "vmware-vsphere/default"
-  )
-
-  for group in "${plugin_groups[@]}"; do
-    echo "📦 Installing plugin group: $group"
-
-    # Get current plugins (before install)
-    local -a before_plugins
-    while IFS= read -r line; do
-      before_plugins+=("$line")
-    done < <(tanzu plugin list -o json | jq -r '.[] | "\(.name):\(.target)"' | sort -u)
-
-    # Install plugins quietly
-    tanzu plugin install all --group "$group" > /dev/null 2>&1
-
-    # Get plugins after install
-    local -a after_plugins
-    while IFS= read -r line; do
-      after_plugins+=("$line")
-    done < <(tanzu plugin list -o json | jq -r '.[] | "\(.name):\(.target)"' | sort -u)
-
-    # Compare and count newly added plugins
-    local -i new_count=0
-    for plugin in "${after_plugins[@]}"; do
-      if [[ ! " ${before_plugins[*]} " == *" $plugin "* ]]; then
-        ((new_count++))
-      fi
-    done
-
-    echo "✅ Installed ${new_count} plugins from group: $group"
-  done
-
-  echo "🎉 Tanzu plugins initialized successfully."
 }
 
 hints() {
-  echo "
-${fg[yellow]}You will need to create a Tanzu context to get started.${reset_color}
-${fg[cyan]} tanzu tmc context create <context-name> -e <tmc.server.name> -i pinniped${reset_color}
-${fg[cyan]} tanzu context create <context-name> -e <tmc.server.name> -i pinniped${reset_color}
+  echo "\n${fg[yellow]}Need help with Tanzu contexts?${reset_color}"
+  echo "${fg[cyan]} tanzu tmc context create <context-name> -e <server> -i pinniped${reset_color}"
+  echo "${fg[cyan]} tanzu context create <context-name> -e <server> -i pinniped${reset_color}"
+  echo
+  echo "${fg[yellow]}Login to vSphere Supervisor clusters with:${reset_color}"
+  echo "${fg[cyan]} kubectl vsphere login --server <url> --vsphere-username <user> --insecure-skip-tls-verify${reset_color}\n"
+  echo
+  echo "${fg[yellow]}To quickly and interactively change your kubernetes context:${reset_color}"
+  echo "${fg[cyan]} kubectx ${reset_color}"
 
-${fg[yellow]}Once you have a context created, you can generate kubeconfigs for each TMC cluster with:${reset_color}
-${fg[cyan]} tmc-get-kubeconfigs${reset_color}
-
-${fg[yellow]}To log in to vSphere Supervisor clusters (vKS, TKGS, etc.), you can use:${reset_color}
-${fg[cyan]} kubectl vsphere login --server <vSphere-API-URL> --vsphere-username <username> --insecure-skip-tls-verify${reset_color}
-"
 }
 
+# ----- Run banner and init Tanzu -----
 banner
-echo
 if tanzu_needs_init; then
   tanzu_init
 else
   echo "ℹ️  Tanzu already initialized."
 fi
-echo
-echo "K8s CLI environment loaded.  Type 'hints' for usage tips."
+echo "K8s CLI environment loaded. Type 'hints' for usage tips."
 echo
