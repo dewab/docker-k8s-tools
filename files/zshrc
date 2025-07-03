@@ -27,6 +27,14 @@ else
   echo "⚠️ zsh-syntax-highlighting not found, skipping."
 fi
 
+# ----- Direnv Integration -----
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+  echo "ℹ️  direnv loaded for shell environment."
+else
+  echo "⚠️ direnv not found, skipping integration."
+fi
+
 # ----- Enable Powerlevel10k -----
 # Custom Powerlevel10k segment to show Tanzu context
 function prompt_tanzu() {
@@ -76,6 +84,33 @@ alias la='exa --classify --icons --color-scale --all'
 alias ll='exa --classify --long --icons --color-scale --all'
 alias ls='exa --icons --color-scale'
 
+# ----- Functions -----
+set-kubeconfig() {
+  # Build a colon-separated list of kubeconfig files
+  local kubeDir="$HOME/.kube"
+  local mainConfig="$kubeDir/config"
+  local kubeFiles=()
+  [[ -f "$mainConfig" ]] && kubeFiles+=("$mainConfig")
+  for f in "$kubeDir"/kubeconfig*yaml(N); do
+    [[ -f "$f" ]] && kubeFiles+=("$f")
+  done
+  if (( ${#kubeFiles[@]} )); then
+    export KUBECONFIG="${(j/:/)kubeFiles}"
+    echo "KUBECONFIG set to:"
+    for f in "${kubeFiles[@]}"; do
+      echo "  $f"
+    done
+  else
+    unset KUBECONFIG
+    echo "No kubeconfig files found in $kubeDir. KUBECONFIG unset."
+  fi
+
+  echo
+  echo "⚠️ ${fg[yellow]}Warning:${reset_color} ${fg[bright_white]}Setting KUBECONFIG to multiple files may cause unexpected behavior."
+  echo "           ${fg[bright_white]} Not all commands support multiple kubeconfig files (ex. kubectx).${reset_color}"
+  echo
+}
+
 # ----- Tanzu Init Check -----
 tanzu_needs_init() {
   local config_yaml="$HOME/.config/tanzu/config.yaml"
@@ -116,23 +151,26 @@ banner() {
 }
 
 hints() {
-  echo "\n${fg[yellow]}Need help with Tanzu contexts?${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} tanzu tmc context create <context-name> -e <server> -i pinniped${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} tanzu context create <context-name> -e <server> -i pinniped${reset_color}"
+  echo "\n${fg[blue]}Need help with Tanzu contexts?${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} tanzu tmc context create <context-name> -e <server> -i pinniped${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} tanzu context create <context-name> -e <server> -i pinniped${reset_color}"
   echo
-  echo "${fg[yellow]}Login to vSphere Supervisor clusters with:${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} kubectl vsphere login --server <url> --vsphere-username <user> --insecure-skip-tls-verify${reset_color}"
+  echo "${fg[blue]}Login to vSphere Supervisor clusters with:${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} kubectl vsphere login --server <url> --vsphere-username <user> --insecure-skip-tls-verify${reset_color}"
   echo
-  echo "${fg[yellow]}To quickly and interactively change your kubernetes context or namespace:${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} kubectx ${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} kubeens ${reset_color}"
+  echo "${fg[blue]}To quickly and interactively change your kubernetes context or namespace:${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} kubectx ${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} kubeens ${reset_color}"
   echo
-  echo "${fg[yellow]}Alternatively, you can interactively switch kubernetes context or namespace using:${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} switch ${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} switch ns ${reset_color}"
+  echo "${fg[blue]}Alternatively, you can interactively switch kubernetes context or namespace using:${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} switch ${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} switch ns ${reset_color}"
   echo
-  echo "${fg[yellow]}To add all TMC-managed workload clusters to your kubeconfig:${reset_color}"
-  echo "${fg[white]}>${fg[cyan]} tmc-get-kubeconfigs ${reset_color}"
+  echo "${fg[blue]}To add all TMC-managed workload clusters to your ~/.kube/config:${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} tmc-get-kubeconfigs ${reset_color}"
+  echo
+  echo "${fg[blue]}To log into TKGS (Tanzu for vSphere, vSphere Supervisor) clusters defined in ~/.config/tkgs-login/config.yaml:${reset_color}"
+  echo "${fg[bright_white]}>${fg[cyan]} tkgs-login ${reset_color}"
   echo
 }
 

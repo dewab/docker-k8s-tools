@@ -130,7 +130,7 @@ LABEL org.opencontainers.image.title="k8s-cli-toolkit" \
       org.opencontainers.image.authors="dwhicker@bifrost.cc"
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends zsh git jq vim curl ca-certificates zsh-common zsh-autosuggestions exa locales fzf zsh-syntax-highlighting && \
+    apt-get install -y --no-install-recommends zsh git jq vim curl ca-certificates zsh-common zsh-autosuggestions exa locales fzf zsh-syntax-highlighting direnv && \
     rm -rf /var/lib/apt/lists/*
 
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
