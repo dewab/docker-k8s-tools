@@ -17,6 +17,7 @@ fi
 
 set -- /k8s/.ca/*.crt
 if [ -e "$1" ]; then
+  echo "🔐 Updating CA certificates from /k8s/.ca"
   cp /k8s/.ca/*.crt /usr/local/share/ca-certificates/
   output=$(update-ca-certificates 2>&1)
   summary=$(echo "$output" | grep -Eo '[0-9]+ added, [0-9]+ removed; done.')

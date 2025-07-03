@@ -1,5 +1,12 @@
 # ~/.zshrc for Kubernetes CLI Toolkit
 
+# ----- Configure XDG -----
+export XDG_CONFIG_HOME=${HOME}/.config  XDG_CACHE_HOME=${HOME}/.cache XDG_DATA_HOME=${HOME}/.local/share XDG_STATE_HOME=${HOME}/.local/state
+for XDG_PATH in $XDG_CONFIG_HOME $XDG_CACHE_HOME $XDG_DATA_HOME $XDG_STATE_HOME
+do
+	[ -d "${XDG_PATH}" ] || mkdir -m 0700 -p "${XDG_PATH}"
+done
+
 # ----- Enable Completion -----
 fpath=(/usr/local/share/zsh/site-functions $fpath)
 autoload -Uz compinit promptinit
@@ -39,6 +46,11 @@ if [ -d /usr/local/share/powerlevel10k ]; then
   fi
 else
   echo "⚠️ Powerlevel10k theme not found, skipping."
+fi
+
+# ----- Initialize Kubeswitch -----
+if [ -x /usr/local/bin/switcher ]; then
+  source <(switcher init zsh)
 fi
 
 # ----- Color Setup -----
@@ -117,7 +129,6 @@ hints() {
   echo "${fg[yellow]}To add all TMC-managed workload clusters to your kubeconfig:${reset_color}"
   echo "${fg[cyan]} tmc-get-kubeconfigs ${reset_color}"
   echo
-
 }
 
 # ----- Run banner and init Tanzu -----

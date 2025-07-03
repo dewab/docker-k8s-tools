@@ -16,8 +16,26 @@ append_to_github_env() {
 
 get_latest_github_release() {
   local repo="$1"
-  curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" |
-    grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/' || true
+  local attempt=1
+  local max_attempts=3
+  local delay=10
+  local response
+
+  while (( attempt <= max_attempts )); do
+    response=$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null)
+    if [[ $? -eq 0 && ! "$response" =~ "API rate limit exceeded" && ! "$response" =~ "403 Forbidden" ]]; then
+      echo "$response" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/'
+      return 0
+    fi
+    if (( attempt < max_attempts )); then
+      echo "[WARN] GitHub API returned 403 or error for $repo, attempt $attempt/$max_attempts. Retrying in $delay seconds..." >&2
+      sleep $delay
+    fi
+    ((attempt++))
+  done
+
+  echo "[ERROR] Failed to fetch latest release for $repo after $max_attempts attempts." >&2
+  return 1
 }
 
 # Fetch versions
@@ -34,13 +52,14 @@ TANZU_CLI_VERSION=$(get_latest_github_release "vmware-tanzu/tanzu-cli")
 VELERO_VERSION=$(get_latest_github_release "vmware-tanzu/velero")
 KUBECTL_VERSION=$(curl -fsSL https://storage.googleapis.com/kubernetes-release/release/stable.txt | sed 's/^v//')
 KUBECTX_VERSION=$(get_latest_github_release "ahmetb/kubectx")
+KUBESWITCH_VERSION=$(get_latest_github_release "danielfoehrKn/kubeswitch")
 
 # Export and append to GitHub Actions environment
 for var in YQ_VERSION HELM_VERSION YTT_VERSION KAPP_VERSION KCTRL_VERSION \
            KBLD_VERSION IMGPKG_VERSION VENDIR_VERSION K9S_VERSION \
-           TANZU_CLI_VERSION VELERO_VERSION KUBECTL_VERSION KUBECTX_VERSION; do
+           TANZU_CLI_VERSION VELERO_VERSION KUBECTL_VERSION KUBECTX_VERSION KUBESWITCH_VERSION; do
   append_to_github_env "$var" "${!var:-}"
 done
 
 # Add the image version (e.g. Git commit hash)
-echo "IMAGE_VERSION=${GITHUB_SHA}" >> "$GITHUB_ENV"
+echo "IMAGE_VERSION=${GITHUB_SHA:-unknown}" >> "$GITHUB_ENV"

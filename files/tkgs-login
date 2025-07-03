@@ -74,10 +74,12 @@ EOF
 }
 
 # ----- Parse command line options -----
+explicitConfigProvided=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -c|--config)
             configFile="$2"
+            explicitConfigProvided=true
             shift 2
             ;;
         -p|--password)
@@ -111,6 +113,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ----- Config file search order -----
+if ! $explicitConfigProvided; then
+    if [[ -f "./tkgs-login-config.yaml" ]]; then
+        configFile="./tkgs-login-config.yaml"
+    elif [[ -n "${XDG_CONFIG_HOME:-}" && -f "${XDG_CONFIG_HOME}/tkgs-login/config.yaml" ]]; then
+        configFile="${XDG_CONFIG_HOME}/tkgs-login/config.yaml"
+    elif [[ -n "${HOME:-}" && -f "${HOME}/.tkgs-login.conf" ]]; then
+        configFile="${HOME}/.tkgs-login.conf"
+    else
+        configFile=""
+    fi
+fi
+
 if [[ -z "$configFile" || ! -f "$configFile" ]]; then
     echo "Error: Config file not found in any expected location." >&2
     echo
