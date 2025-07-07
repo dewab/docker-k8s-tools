@@ -54,8 +54,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ${{ vars.DOCKERHUB_USERNAME }}/your-image:latest
-            ${{ vars.DOCKERHUB_USERNAME }}/your-image:${{ github.sha }}
+            ${{ vars.DOCKERHUB_USERNAME }}/k8s-cli-toolkit:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/k8s-cli-toolkit:${{ github.sha }}
           build-args: |
             YQ_VERSION=${{ env.YQ_VERSION }}
             HELM_VERSION=${{ env.HELM_VERSION }}
