@@ -64,3 +64,4 @@ jobs:
             IMAGE_VERSION=${{ env.IMAGE_VERSION }}
             KUBESWITCH_VERSION=${{ env.KUBESWITCH_VERSION }}
             KUBECTX_VERSION=${{ env.KUBECTX_VERSION }}
+            KUBECOLOR_VERSION=${{ env.KUBECOLOR_VERSION }}

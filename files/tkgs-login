@@ -2,6 +2,77 @@
 
 set -euo pipefail
 
+# ----- Handle completion commands -----
+if [[ "${1:-}" == "completion" ]]; then
+  case "${2:-}" in
+    zsh)
+      cat <<'EOF'
+# Zsh completion for tkgs-login
+_tkgs_login_completions() {
+  _arguments -C \
+    '-c[Path to config YAML file]' \
+    '--config=[Path to config YAML file]' \
+    '-p[Password for all supervisors]' \
+    '--password=[Password for all supervisors]' \
+    '-i[Skip TLS verification]' \
+    '--insecure[Skip TLS verification]' \
+    '-k[Set KUBECONFIG to specified file]' \
+    '--kubeconfig=[Set KUBECONFIG to specified file]' \
+    '-v[Show detailed output]' \
+    '--verbose[Show detailed output]' \
+    '-e[Show example config file and exit]' \
+    '--example[Show example config file and exit]' \
+    '-h[Show help message]' \
+    '--help[Show help message]'
+}
+compdef _tkgs_login_completions tkgs-login
+EOF
+      exit 0
+      ;;
+    bash)
+      cat <<'EOF'
+# Bash completion for tkgs-login
+_tkgs_login_completions() {
+  local cur prev opts
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+  opts="-c --config -p --password -i --insecure -k --kubeconfig -v --verbose -e --example -h --help"
+
+  case "$prev" in
+    -c|--config|-k|--kubeconfig)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return 0
+      ;;
+  esac
+
+  COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
+  return 0
+}
+complete -F _tkgs_login_completions tkgs-login
+EOF
+      exit 0
+      ;;
+    fish)
+      cat <<'EOF'
+# Fish completion for tkgs-login
+complete -c tkgs-login -s c -l config -r -d "Path to config YAML file"
+complete -c tkgs-login -s p -l password -r -d "Password for all supervisors"
+complete -c tkgs-login -s i -l insecure -d "Skip TLS verification"
+complete -c tkgs-login -s k -l kubeconfig -r -d "Set KUBECONFIG to specified file"
+complete -c tkgs-login -s v -l verbose -d "Show detailed output"
+complete -c tkgs-login -s e -l example -d "Show example config file and exit"
+complete -c tkgs-login -s h -l help -d "Show help message"
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Unknown shell for completion: ${2:-}" >&2
+      exit 1
+      ;;
+  esac
+fi
+
 # ----- Verify required commands are in PATH -----
 for cmd in kubectl kubectl-vsphere tanzu yq; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -30,6 +101,11 @@ Options:
   -v, --verbose            Show detailed output
   -e, --example            Show example config file and exit
   -h, --help               Show this help message and exit
+
+Commands:
+  completion zsh           Output Zsh completion script
+  completion bash          Output Bash completion script
+  completion fish          Output Fish completion script
 
 Config file search order:
   1. Command line -c/--config option
@@ -157,11 +233,9 @@ for supervisorIndex in $supervisorKeys; do
     yamlPassword=$(echo "$supervisorBlock" | yq e '.password' -)
     yamlInsecure=$(echo "$supervisorBlock" | yq e '.insecure' -)
 
-    # Use CLI --insecure flag if set, otherwise use YAML
     effectiveInsecureFlag="$insecureFlag"
     [[ -z "$effectiveInsecureFlag" && "$yamlInsecure" == "true" ]] && effectiveInsecureFlag="--insecure-skip-tls-verify"
 
-    # Determine password to use (CLI > YAML)
     if [[ -n "$genericPassword" ]]; then
         export KUBECTL_VSPHERE_PASSWORD="$genericPassword"
     elif [[ -n "$yamlPassword" && "$yamlPassword" != "null" ]]; then
@@ -177,7 +251,6 @@ for supervisorIndex in $supervisorKeys; do
         exit 1
     fi
 
-    # Get workload keys for this supervisor
     workloadKeys=$(yq e ".supervisors[$supervisorIndex].workloads | keys | .[]" "$configFile" 2>/dev/null || true)
     if [[ -z "$workloadKeys" ]]; then
         echo "⚠️  No workloads defined for Supervisor $supervisorServer — skipping clusters."
@@ -185,7 +258,6 @@ for supervisorIndex in $supervisorKeys; do
         continue
     fi
 
-    # Loop through workloads and clusters
     for workloadIndex in $workloadKeys; do
         workloadBlock=$(yq e ".supervisors[$supervisorIndex].workloads[$workloadIndex]" "$configFile")
         workloadNamespace=$(echo "$workloadBlock" | yq e '.namespace' -)

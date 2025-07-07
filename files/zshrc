@@ -13,6 +13,10 @@ autoload -Uz compinit promptinit
 compinit -C
 promptinit
 
+# ----- Add custom completions -----
+source <(tmc-get-kubeconfigs completion zsh)
+source <(tkgs-login completion zsh)
+
 # ----- Autosuggestions -----
 if [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
   source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
@@ -27,12 +31,28 @@ else
   echo "⚠️ zsh-syntax-highlighting not found, skipping."
 fi
 
+# ----- FZF Tab Completion -----
+if [ -f /usr/local/share/fzf-tab/fzf-tab.plugin.zsh ]; then
+  source /usr/local/share/fzf-tab/fzf-tab.plugin.zsh
+else
+  echo "⚠️ fzf-tab plugin not found, skipping."
+fi
+
 # ----- Direnv Integration -----
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
   echo "ℹ️  direnv loaded for shell environment."
 else
   echo "⚠️ direnv not found, skipping integration."
+fi
+
+# ----- Kubecolor -----
+if [ -f /usr/local/bin/kubecolor ]; then
+  alias kubectl='kubecolor'
+  compdef kubecolor=kubectl
+  echo "ℹ️  kubecolor enabled for kubectl."
+else
+  echo "⚠️ kubecolor not found, skipping integration."
 fi
 
 # ----- Enable Powerlevel10k -----

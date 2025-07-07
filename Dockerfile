@@ -25,6 +25,7 @@ ARG VELERO_VERSION
 ARG KUBECTL_VERSION
 ARG KUBECTX_VERSION
 ARG KUBESWITCH_VERSION
+ARG KUBECOLOR_VERSION
 
 RUN apt-get update && \
     apt-get upgrade -y && \
@@ -46,6 +47,7 @@ ADD https://github.com/carvel-dev/vendir/releases/download/v${VENDIR_VERSION}/ve
 ADD https://github.com/vmware-tanzu/velero/releases/download/v${VELERO_VERSION}/velero-v${VELERO_VERSION}-${TARGET_OS}-${TARGET_ARCH}.tar.gz /tmp/velero.tar.gz
 ADD https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${TARGET_OS}/${TARGET_ARCH}/kubectl /tmp/kubectl
 ADD https://github.com/danielfoehrKn/kubeswitch/releases/download/${KUBESWITCH_VERSION}/switcher_${TARGET_OS}_${TARGET_ARCH} /tmp/switcher
+ADD https://github.com/kubecolor/kubecolor/releases/download/v${KUBECOLOR_VERSION}/kubecolor_${KUBECOLOR_VERSION}_${TARGET_OS}_${TARGET_ARCH}.tar.gz /tmp/kubecolor.tar.gz
 
 RUN curl -fSL -o /tmp/k9s.tar.gz "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_${TARGET_OS^}_${TARGET_ARCH}.tar.gz"
 RUN curl -fsSL -o /tmp/kubectx.tar.gz "https://github.com/ahmetb/kubectx/releases/download/v${KUBECTX_VERSION}/kubectx_v${KUBECTX_VERSION}_${TARGET_OS}_${TARGET_ARCH/amd64/x86_64}.tar.gz"
@@ -71,6 +73,7 @@ RUN install -m 755 /tmp/yq /usr/local/bin/yq && \
     tar -xzf /tmp/velero.tar.gz --strip-components=1 -C /usr/local/bin "velero-v${VELERO_VERSION}-${TARGET_OS}-${TARGET_ARCH}/velero" && \
     tar -xzf /tmp/kubectx.tar.gz -C /usr/local/bin kubectx && chmod +x /usr/local/bin/kubectx && \
     tar -xzf /tmp/kubens.tar.gz -C /usr/local/bin kubens && chmod +x /usr/local/bin/kubens && \
+    tar -xzf /tmp/kubecolor.tar.gz -C /tmp && install -m 755 /tmp/kubecolor /usr/local/bin/kubecolor && \
     mkdir tanzu-extract && \
     tar -xzf /tmp/tanzu-cli.tar.gz -C tanzu-extract && \
     mv tanzu-extract/v${TANZU_CLI_VERSION}/tanzu-cli-* /usr/local/bin/tanzu && chmod +x /usr/local/bin/tanzu && \
@@ -79,6 +82,8 @@ RUN install -m 755 /tmp/yq /usr/local/bin/yq && \
 # Powerlevel10k and zsh completions
 RUN git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /usr/local/share/powerlevel10k && \
     rm -rf /usr/local/share/powerlevel10k/.git && \
+    git clone --depth=1 https://github.com/Aloxaf/fzf-tab.git /usr/local/share/fzf-tab && \
+    rm -rf /usr/local/share/fzf-tab/.git && \
     mkdir -p /usr/local/share/zsh/site-functions && \
     kubectl completion zsh > /usr/local/share/zsh/site-functions/_kubectl && \
     helm completion zsh > /usr/local/share/zsh/site-functions/_helm && \
@@ -143,6 +148,7 @@ RUN groupadd -r k8s && useradd -m -d /k8s -s /bin/zsh -g k8s k8suser && \
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /usr/local/share/zsh /usr/local/share/zsh
 COPY --from=builder /usr/local/share/powerlevel10k /usr/local/share/powerlevel10k
+COPY --from=builder /usr/local/share/fzf-tab /usr/local/share/fzf-tab
 COPY --from=builder /versions.json /versions.json
 
 COPY files/zshrc \
