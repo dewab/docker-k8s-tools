@@ -28,6 +28,10 @@ It is designed to simplify tool setup for administrators—especially those work
 | `tanzu`    | VMware Tanzu CLI                         |
 | `velero`   | Backup and restore CLI                   |
 | `kubectl`  | Kubernetes CLI                           |
+| `kubecolor` | Colorizes kubectl output                |
+| `kubeswitch` | Switches between kube contexts         |
+| `kubectx` | Switches between kube contexts            |
+
 
 > **Note:** The `kubectl-vsphere` plugin is included only on the `amd64` platform. There is currently no official Linux `arm64` build available.
 
@@ -41,6 +45,16 @@ docker run --rm -it \
   -v <cavolume>:/ca \
   -v <manifestdir>:/work \
   -v ${HOME}/.kube/config:/kubeconfig \
+  -p 80:80 \
+  ghcr.io/dewab/docker-k8s-tools:latest
+```
+
+example:
+
+```bash
+docker run --rm -it \
+  -v k8s-home:/k8s \
+  -v ${HOME}/ca:/ca \
   -p 80:80 \
   ghcr.io/dewab/docker-k8s-tools:latest
 ```
