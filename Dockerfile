@@ -142,8 +142,7 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen en_US.UTF-8 && \
     update-locale LANG=en_US.UTF-8
 
-RUN groupadd -r k8s && useradd -m -d /k8s -s /bin/zsh -g k8s k8suser && \
-    chown -R k8suser:k8s /k8s
+# RUN groupadd -r k8s && useradd -m -d /k8s -s /bin/zsh -g k8s k8suser && chown -R k8suser:k8s /k8s
 
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /usr/local/share/zsh /usr/local/share/zsh
@@ -167,22 +166,24 @@ RUN cat /tmp/zshrc >> /etc/zsh/zshrc && \
     mv /tmp/tmc-get-kubeconfigs /usr/local/bin/tmc-get-kubeconfigs && chmod +x /usr/local/bin/tmc-get-kubeconfigs && \
     mv /tmp/p10k.zsh /usr/local/share/powerlevel10k/p10k.zsh && \
     chmod +x /entrypoint.sh && \
-    mkdir -p /work && chown k8suser:k8s /work && \
+    # mkdir -p /work && chown k8suser:k8s /work && \
+    mkdir -p /work && \
     if [ "$TARGET_ARCH" = "amd64" ]; then \
         mv /tmp/kubectl-vsphere /usr/local/bin/kubectl-vsphere && chmod +x /usr/local/bin/kubectl-vsphere; \
     else \
         rm -f /tmp/kubectl-vsphere; \
-    fi && \
-    chown -R k8suser:k8s /k8s
+    fi 
+    # && \
+    # chown -R k8suser:k8s /k8s
 
 ENV PATH="/usr/local/bin:$PATH"
 ENV HOME=/k8s
 WORKDIR /work
 
-RUN chown -R k8suser:k8s /usr/local/share/ca-certificates /etc/ssl/certs
+# RUN chown -R k8suser:k8s /usr/local/share/ca-certificates /etc/ssl/certs
 
 EXPOSE 80
 
-USER k8suser
+# USER k8suser
 
 CMD ["/entrypoint.sh"]
