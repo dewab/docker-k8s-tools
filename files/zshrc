@@ -4,7 +4,7 @@
 export XDG_CONFIG_HOME=${HOME}/.config  XDG_CACHE_HOME=${HOME}/.cache XDG_DATA_HOME=${HOME}/.local/share XDG_STATE_HOME=${HOME}/.local/state
 for XDG_PATH in $XDG_CONFIG_HOME $XDG_CACHE_HOME $XDG_DATA_HOME $XDG_STATE_HOME
 do
-	[ -d "${XDG_PATH}" ] || mkdir -m 0700 -p "${XDG_PATH}"
+  [ -d "${XDG_PATH}" ] || mkdir -m 0700 -p "${XDG_PATH}"
 done
 
 # ----- Enable Completion -----
@@ -196,8 +196,31 @@ hints() {
 
 # ----- Run banner and init Tanzu -----
 banner
+
+# ----- Check for persistent volume -----
+if grep -q '/k8s' /proc/self/mountinfo; then
+  echo "✅ Persistent volume /k8s is mounted."
+  persistent_volume=true
+else
+  echo "${fg[yellow]}⚠️  Warning:${reset_color} ${fg[bright_white]}Persistent volume /k8s not found. Please ensure it is mounted correctly.${reset_color}"
+  echo "    ${fg[bright_white]}When running the container, use the -v option to mount a persistent volume on /k8s.${reset_color}"
+  echo "    ${fg[bright_white]}Without this, your Kubernetes configurations and data will not persist across container restarts.${reset_color}"
+  echo
+  echo "    Example command to run the container with a persistent volume:"
+  echo "    docker run --rm -it -v k8s-home:/k8s -v ${HOME}/ca:/ca -v ${HOME}/kubernetes:/work -p 80:80 ghcr.io/dewab/docker-k8s-tools:latest"
+  echo
+  persistent_volume=false
+fi
+
 if tanzu_needs_init; then
-  tanzu_init
+  if [ "$persistent_volume" = true ]; then
+    tanzu_init
+  else
+    echo "${fg[yellow]}⚠️  Warning:${reset_color} ${fg[bright_white]}Tanzu CLI needs initialization, but no persistent volume is mounted.${reset_color}"
+    echo "    ${fg[bright_white]}Tanzu plugins and configuration will NOT persist across container restarts.${reset_color}"
+    echo "    ${fg[bright_white]}To initialize Tanzu anyway, run: tanzu_init${reset_color}"
+    echo
+  fi
 else
   echo "ℹ️  Tanzu already initialized."
 fi

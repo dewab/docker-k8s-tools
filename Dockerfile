@@ -167,7 +167,7 @@ RUN cat /tmp/zshrc >> /etc/zsh/zshrc && \
     mv /tmp/p10k.zsh /usr/local/share/powerlevel10k/p10k.zsh && \
     chmod +x /entrypoint.sh && \
     # mkdir -p /work && chown k8suser:k8s /work && \
-    mkdir -p /work && \
+    mkdir -p /k8s /work && \
     if [ "$TARGET_ARCH" = "amd64" ]; then \
         mv /tmp/kubectl-vsphere /usr/local/bin/kubectl-vsphere && chmod +x /usr/local/bin/kubectl-vsphere; \
     else \
