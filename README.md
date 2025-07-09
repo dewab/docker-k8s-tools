@@ -52,11 +52,13 @@ docker run --rm -it \
 example:
 
 ```bash
-docker run --rm -it \
-  -v k8s-home:/k8s \
-  -v ${HOME}/ca:/ca \
-  -p 80:80 \
-  ghcr.io/dewab/docker-k8s-tools:latest
+docker run --rm -it -v k8s-home:/k8s -v ${HOME}/ca:/ca -p 80:80 ghcr.io/dewab/docker-k8s-tools:latest
+```
+
+example for Windows:
+
+```bash
+docker run --rm -it -v k8s-home:/k8s -v C:\kuberenetes\ca:/ca -v C:\kubernetes:/work -p 80:80 ghcr.io/dewab/docker-k8s-tools:latest
 ```
 
 ---
@@ -151,6 +153,24 @@ This ensures the browser sends the response to the correct port.
 - The status bar with kube contexts appears once a kubeconfig exists.
 - Velero version is shown only if a kubeconfig is present.
 - All included tools have tab completion enabled.
+
+---
+
+## 🦭 Podman
+
+If you're using Podman, there may be some specific changes needed to allow for pinniped OIDC authentication to work correctly, or for access to resources on the other side of a VPN.  Podman, by default, runs in rootless mode, which can cause issues with port binding and network access.  To work around this you will need to run Podman in rootful mode.  To resolve the VPN connection issues, you will also need to enable user-mode networking.
+
+```bash
+podman machine stop
+podman machine set --rootful=true --user-mode-networking=true
+podman machine start
+```
+
+The command to run the container in podman on Windows might look like this:
+
+```bash
+podman run --rm -it -v k8s-home:/k8s -v c:\Kubernetes\ca:/ca -v c:\kubernetes:/work -p 80:80 ghcr.io/dewab/docker-k8s-tools:latest
+```
 
 ---
 
